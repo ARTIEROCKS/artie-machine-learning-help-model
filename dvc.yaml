@@ -6,3 +6,10 @@ stages:
     - src/download.py
     outs:
     - data/pedagogicalinterventions.json
+  transformation:
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
+    deps:
+    - data/pedagogicalinterventions.json
+    - src/formatcsv.py
+    outs:
+    - data/pedagogicalinterventions.csv

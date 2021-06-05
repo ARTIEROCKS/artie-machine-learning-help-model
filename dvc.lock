@@ -11,3 +11,16 @@ stages:
     - path: data/pedagogicalinterventions.json
       md5: ce60427983e17445924912bb86ca18e7
       size: 113450
+  transformation:
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
+    deps:
+    - path: data/pedagogicalinterventions.json
+      md5: ce60427983e17445924912bb86ca18e7
+      size: 113450
+    - path: src/formatcsv.py
+      md5: b3291ca4b5b7a9ed6feaaf6050e99123
+      size: 7387
+    outs:
+    - path: data/pedagogicalinterventions.csv
+      md5: 3cc258fb5cadf8dd75a56156db05a608
+      size: 20575
