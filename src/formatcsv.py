@@ -12,21 +12,39 @@ def loadjsondata(filepath):
     return data
 
 
-# Function to get the different
-def getdifferentskills(tmpdata):
-    skillslist = []
+# Function to get the first actions of the exercise
+def getfirstaction(interventions):
 
-    # 1- Walk through the data and get the different skills
-    for element in tmpdata:
-        if 'exercise' in element and 'skills' in element['exercise']:
-            for skill in element['exercise']['skills']:
-                if 'name' in skill:
-                    if skill['name'] not in skillslist:
-                        skillslist.append(skill['name'])
-    return skillslist
+    first_actions={}
+    student_id = None
+    date_time = None
+    last_login = None
+    exercise_id = None
+    for element in interventions:
+        if 'student' in element:
+            if '_id' in element['student']:
+                student_id = element['student']['_id']
+        if 'dateTime' in element:
+            date_time = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
+        if 'lastLogin' in element:
+            last_login = element['lastLogin']
+        if 'exercise' in element:
+            if '_id' in element['exercise']:
+                exercise_id = element['exercise']['_id']
+
+        if student_id is not None and date_time is not None and last_login is not None and exercise_id is not None:
+            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
+                if date_time < first_actions[student_id + '_' + exercise_id + '_' + last_login]:
+                    first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+            else:
+                first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+
+    return first_actions
 
 
-def writepedagogicalsoftwareinterventionscsv(interventions):
+
+#Function to write the software interventions in csv format
+def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
     row_list=[]
     row_list.append(['student_gender', 'student_mother_tongue', 'student_age', 'student_competence',
@@ -68,12 +86,29 @@ def writepedagogicalsoftwareinterventionscsv(interventions):
         request_help = False
         finished_exercise = False
 
-        # Time calculation between the last login and the current action
-        if 'dateTime' in element and 'lastLogin' in element:
-            date_time_obj = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
-            last_login_obj = datetime.strptime(element['lastLogin'], '%Y-%m-%d %H:%M:%S')
-            difference = (date_time_obj - last_login_obj)
-            total_seconds = difference.total_seconds()
+        student_id = None
+        exercise_id = None
+        last_login = None
+
+        if 'student' in element:
+            if '_id' in element['student']:
+                student_id = element['student']['_id']
+
+        if 'exercise' in element:
+            if '_id' in element['exercise']:
+                exercise_id = element['exercise']['_id']
+
+        if 'lastLogin' in element:
+            last_login = element['lastLogin']
+
+        # Time calculation between the first action of the exercise and the current action
+        if student_id is not None and last_login is not None and exercise_id is not None:
+            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
+                if 'dateTime' in element:
+                    date_time_obj = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
+                    first_action = first_actions[student_id + '_' + exercise_id + '_' + last_login]
+                    difference = (date_time_obj - first_action)
+                    total_seconds = difference.total_seconds()
 
 
         # Student information
@@ -153,11 +188,11 @@ def writepedagogicalsoftwareinterventionscsv(interventions):
 # 1- Gets the json data
 data = loadjsondata(sys.argv[1])
 
-# 2-Get the different skills from the data
-skills = getdifferentskills(data)
+# 2- Get the first action of each exercise
+actions = getfirstaction(data)
 
 # 3- Creating the csv rows
-rowList = writepedagogicalsoftwareinterventionscsv(data)
+rowList = writepedagogicalsoftwareinterventionscsv(data, actions)
 
 # 4- Writing the csv file
 with open(sys.argv[2], 'w', newline='') as file:

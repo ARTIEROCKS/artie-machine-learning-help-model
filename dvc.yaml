@@ -1,7 +1,6 @@
 stages:
   download:
-    cmd: python src/download.py data pre-prod.artie.rocks 27017 artie_u ArtieU123
-      artie
+    cmd: python src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
     deps:
     - src/download.py
     outs:

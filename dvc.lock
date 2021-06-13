@@ -1,26 +1,25 @@
 schema: '2.0'
 stages:
   download:
-    cmd: python src/download.py data pre-prod.artie.rocks 27017 artie_u ArtieU123
-      artie
+    cmd: python src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
     deps:
     - path: src/download.py
       md5: f408c9f55fe7a46b5c717096012ea1d4
       size: 2415
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: ce60427983e17445924912bb86ca18e7
-      size: 113450
+      md5: 25f4c6c2abe306108af560cc0c93077a
+      size: 5177310
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: ce60427983e17445924912bb86ca18e7
-      size: 113450
+      md5: 25f4c6c2abe306108af560cc0c93077a
+      size: 5177310
     - path: src/formatcsv.py
       md5: eea343f2bcc0429bee68f6978169d875
       size: 7814
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: 035fe43c8a1f6e78f74e1553abc7af93
-      size: 15135
+      md5: d300e60a8fa840371258a8b5cfe544dd
+      size: 711029

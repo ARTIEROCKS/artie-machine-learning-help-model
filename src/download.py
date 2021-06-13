@@ -4,11 +4,14 @@ import json
 import os
 import sys
 from pymongo import MongoClient
+from bson import ObjectId
 
 
 def converter(o):
     if isinstance(o, datetime.datetime):
         return o.__str__()
+    if isinstance(o, ObjectId):
+        return str(o)
 
 
 # 1- get the connection parameters
@@ -46,8 +49,6 @@ with open(directory + '/pedagogicalinterventions.json', 'a') as outfile:
         if 'exerciseId' in data:
             del data['exerciseId']
         if 'student' in data:
-            if '_id' in data['student']:
-                del data['student']['_id']
             if 'institutionId' in data['student']:
                 del data['student']['institutionId']
             if 'userId' in data['student']:
@@ -55,8 +56,6 @@ with open(directory + '/pedagogicalinterventions.json', 'a') as outfile:
             if 'studentNumber' in data['student']:
                 del data['student']['studentNumber']
         if 'exercise' in data:
-            if '_id' in data['exercise']:
-                del data['exercise']['_id']
             if 'name' in data['exercise']:
                 del data['exercise']['name']
             if 'description' in data['exercise']:
