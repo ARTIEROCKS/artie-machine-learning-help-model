@@ -3,19 +3,20 @@ import json
 import sys
 from datetime import datetime
 
+
 # Function to load the json file data
 def loadjsondata(filepath):
-
     data = []
     for line in open(filepath, 'r'):
         data.append(json.loads(line))
-    return data
+
+    sortedData = sorted(data, key=lambda x: (x['student']['_id'], x['lastLogin'], x['dateTime']))
+    return sortedData
 
 
 # Function to get the first actions of the exercise
 def getfirstaction(interventions):
-
-    first_actions={}
+    first_actions = {}
     student_id = None
     date_time = None
     last_login = None
@@ -42,18 +43,20 @@ def getfirstaction(interventions):
     return first_actions
 
 
-
-#Function to write the software interventions in csv format
+# Function to write the software interventions in csv format
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
-
-    row_list=[]
+    row_list = []
     row_list.append(['student_gender', 'student_mother_tongue', 'student_age', 'student_competence',
-                    'student_motivation', 'exercise_skill_paralellism', 'exercise_skill_logical_thinking',
-                    'exercise_skill_flow_control', 'exercise_skill_user_interactivity', 'exercise_skill_information_representation',
-                    'exercise_skill_abstraction', 'exercise_skill_syncronization', 'exercise_valid_solution', 'exercise_is_evaluation',
-                    'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
-                    'solution_distance_position_distance', 'solution_distance_input_distance', 'solution_distance_total_distance',
-                    'request_help', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade', 'totalSeconds'])
+                     'student_motivation', 'exercise_skill_paralellism', 'exercise_skill_logical_thinking',
+                     'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
+                     'exercise_skill_information_representation',
+                     'exercise_skill_abstraction', 'exercise_skill_syncronization', 'exercise_valid_solution',
+                     'exercise_is_evaluation',
+                     'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
+                     'solution_distance_position_distance', 'solution_distance_input_distance',
+                     'solution_distance_total_distance',
+                     'request_help', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
+                     'totalSeconds'])
 
     for element in interventions:
 
@@ -110,7 +113,6 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                     difference = (date_time_obj - first_action)
                     total_seconds = difference.total_seconds()
 
-
         # Student information
         if 'student' in element:
             if 'gender' in element['student']:
@@ -149,7 +151,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             if 'level' in element['exercise']:
                 exercise_level = element['exercise']['level']
 
-        #Solution distance information
+        # Solution distance information
         if 'solutionDistance' in element:
             if 'familyDistance' in element['solutionDistance']:
                 solution_distance_family_distance = element['solutionDistance']['familyDistance']
@@ -176,10 +178,13 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         # Creating  the row of the csv
         row_list.append([student_gender, student_mother_tongue, student_age, student_competence,
                          student_motivation, exercise_skill_paralellism, exercise_skill_logical_thinking,
-                         exercise_skill_flow_control, exercise_skill_user_interactivity, exercise_skill_information_representation,
-                         exercise_skill_abstraction, exercise_skill_syncronization, exercise_valid_solution, exercise_is_evaluation,
+                         exercise_skill_flow_control, exercise_skill_user_interactivity,
+                         exercise_skill_information_representation,
+                         exercise_skill_abstraction, exercise_skill_syncronization, exercise_valid_solution,
+                         exercise_is_evaluation,
                          exercise_level, solution_distance_family_distance, solution_distance_element_distance,
-                         solution_distance_position_distance, solution_distance_input_distance, solution_distance_total_distance,
+                         solution_distance_position_distance, solution_distance_input_distance,
+                         solution_distance_total_distance,
                          request_help, seconds_help_open, finished_exercise, valid_solution, grade, total_seconds])
 
     return row_list
