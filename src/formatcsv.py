@@ -163,14 +163,14 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             if 'totalDistance' in element['solutionDistance']:
                 solution_distance_total_distance = element['solutionDistance']['totalDistance']
 
-        if 'request_help' in element:
-            request_help = element['request_help']
-        if 'seconds_help_open' in element:
-            seconds_help_open = element['seconds_help_open']
-        if 'finished_exercise' in element:
-            finished_exercise = element['finished_exercise']
-        if 'valid_solution' in element:
-            valid_solution = element['valid_solution']
+        if 'requestHelp' in element:
+            request_help = element['requestHelp']
+        if 'secondsHelpOpen' in element:
+            seconds_help_open = element['secondsHelpOpen']
+        if 'finishedExercise' in element:
+            finished_exercise = element['finishedExercise']
+        if 'validSolution' in element:
+            valid_solution = element['validSolution']
         if 'grade' in element:
             grade = element['grade']
 
