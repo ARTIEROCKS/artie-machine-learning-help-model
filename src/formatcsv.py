@@ -54,9 +54,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                      'exercise_is_evaluation',
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
-                     'solution_distance_total_distance',
-                     'request_help', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
-                     'totalSeconds'])
+                     'solution_distance_total_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
+                     'totalSeconds','request_help'])
 
     for element in interventions:
 
@@ -185,7 +184,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                          exercise_level, solution_distance_family_distance, solution_distance_element_distance,
                          solution_distance_position_distance, solution_distance_input_distance,
                          solution_distance_total_distance,
-                         int(request_help), seconds_help_open, int(finished_exercise), valid_solution, grade, total_seconds])
+                         seconds_help_open, int(finished_exercise), valid_solution, grade, total_seconds,
+                         int(request_help)])
 
     return row_list
 
