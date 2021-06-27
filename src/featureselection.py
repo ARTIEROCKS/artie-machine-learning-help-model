@@ -7,10 +7,10 @@ import numpy as np
 def load(file, columns_to_delete):
     df = pd.read_csv(file, delimiter=',')
     # Deletes the evaluation exercises
-    df = df.drop(df[df.exercise_is_evaluation == 1].index)
+    df_filtered = df.drop(df[df.exercise_is_evaluation == 1].index)
     # Deletes the columns
-    df.drop(columns_to_delete, inplace=True, axis=1)
-    return df
+    df_filtered.drop(columns_to_delete, inplace=True, axis=1)
+    return df, df_filtered
 
 
 # Selects the number of features indicated by the pearson correlation method
@@ -42,15 +42,17 @@ number_of_features = params['selection']['number_of_features']
 high_correlation = params['selection']['high_correlation']
 drop_columns = params['selection']['drop_columns']
 
-df = load(input_csv_file, drop_columns)
+df, df_filtered = load(input_csv_file, drop_columns)
 
 if method == 'filter':
     # Using Pearson Correlation
-    cor = df.corr(method='pearson')
+    cor = df_filtered.corr(method='pearson')
     cor_tri = cor.abs().where(np.triu(np.ones(cor.shape), k=1).astype(bool))
     selected_features = filter_method(cor_tri, target, number_of_features)
-    selected_features_columns = selected_features.to_dict().keys()
-    drop_elements = drop_high_correlated(cor_tri, selected_features_columns, 0.90)
+    selected_features_columns = list(selected_features.to_dict().keys())
+    # We add the target in the last column to avoid be deleted
+    selected_features_columns.append(target)
+    drop_elements = drop_high_correlated(cor_tri, selected_features_columns, high_correlation)
 
     # Gets just the selected elements
     df.drop(columns=[col for col in df if col not in selected_features_columns], inplace=True)

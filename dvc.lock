@@ -31,8 +31,8 @@ stages:
       md5: 73e60df9466b3af4bd6f8f2009770181
       size: 818696
     - path: src/featureselection.py
-      md5: 4cb15931098bf606bd98bb34a0f2bf4c
-      size: 2257
+      md5: c6e2bb6041fe277ae1eb31f9d2ecce75
+      size: 2436
     params:
       params.yaml:
         selection.drop_columns:
@@ -48,5 +48,5 @@ stages:
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 56219cd1844a8ff45b1c155ee2228f56
-      size: 304505
+      md5: 40dddf4f219d950ee441cb2933d1be01
+      size: 653046
