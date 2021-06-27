@@ -8,18 +8,45 @@ stages:
       size: 2325
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: 9c02a71ed292ecc8ac631c46528058c8
-      size: 6997681
+      md5: 7f6c83272096010ee38116a4458602d5
+      size: 7019205
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: 9c02a71ed292ecc8ac631c46528058c8
-      size: 6997681
+      md5: 7f6c83272096010ee38116a4458602d5
+      size: 7019205
     - path: src/formatcsv.py
       md5: 50c466d58eff7ac74464a34024d87dbc
       size: 9588
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: dc4eb5553027205a6fd950b38f626114
-      size: 816262
+      md5: 73e60df9466b3af4bd6f8f2009770181
+      size: 818696
+  featureselection:
+    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
+      data/featureselection.csv
+    deps:
+    - path: data/pedagogicalinterventions.csv
+      md5: 73e60df9466b3af4bd6f8f2009770181
+      size: 818696
+    - path: src/featureselection.py
+      md5: 4cb15931098bf606bd98bb34a0f2bf4c
+      size: 2257
+    params:
+      params.yaml:
+        selection.drop_columns:
+        - exercise_is_evaluation
+        - valid_solution
+        - finished_exercise
+        - exercise_skill_paralellism
+        - exercise_valid_solution
+        - student_motivation
+        selection.high_correlation: 0.9
+        selection.method: filter
+        selection.number_of_features: 50
+        selection.target: request_help
+    outs:
+    - path: data/featureselection.csv
+      md5: 56219cd1844a8ff45b1c155ee2228f56
+      size: 304505

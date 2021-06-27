@@ -1,0 +1,6 @@
+selection:
+  method: 'filter'
+  target: 'request_help'
+  number_of_features: 50
+  high_correlation: 0.90
+  drop_columns: ['exercise_is_evaluation', 'valid_solution', 'finished_exercise', 'exercise_skill_paralellism', 'exercise_valid_solution', 'student_motivation']

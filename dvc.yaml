@@ -12,3 +12,17 @@ stages:
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
+  featureselection:
+    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
+      data/featureselection.csv
+    deps:
+    - data/pedagogicalinterventions.csv
+    - src/featureselection.py
+    params:
+    - selection.drop_columns
+    - selection.high_correlation
+    - selection.method
+    - selection.number_of_features
+    - selection.target
+    outs:
+    - data/featureselection.csv
