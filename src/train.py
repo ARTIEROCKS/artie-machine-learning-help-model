@@ -4,8 +4,8 @@ import math
 import sys
 import yaml
 np.random.seed(0)
-from keras.models import Model, Sequential
-from keras.layers import Dense, Input, Dropout, LSTM, Activation, Masking, TimeDistributed
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
 np.random.seed(1)
 
 
@@ -119,8 +119,8 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train):
 
 
 # Function to generate the model
-def generate_model(shape, data, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False,
-                   use_dropout=False, dropout_value=0.5):
+def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
+                   dropout_value=0.5):
     model = Sequential()
     model.add(Masking(mask_value=mask_value, input_shape=shape))
     model.add(LSTM(lstm_units, return_sequences=return_sequences))
@@ -174,14 +174,13 @@ df, train_x, train_y, test_x, test_y = load_time_series(df,max_time_steps, colum
 
 # Executing the training
 shape = (None, train_x.shape[2])
-model = generate_model(shape, train_x, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
+model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
 history = model.fit(train_x, train_y, epochs=training_epochs, batch_size=training_batch_size, validation_data=(test_x, test_y), verbose=2, shuffle=False)
 
 # Saving the model
 model.save(output_model_file)
 
 # Saving the plots
-
 # convert the history.history dict to a pandas DataFrame:
 hist_df = pd.DataFrame(history.history)
 print(hist_df)

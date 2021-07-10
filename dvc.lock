@@ -58,8 +58,8 @@ stages:
       md5: 5f3aea8607c21f4aa7a47c2f7a6785b9
       size: 653047
     - path: src/train.py
-      md5: 4ef027574e7afba0dc4f892368c87aae
-      size: 6387
+      md5: dc6eac2bcb3f1df19814377f064a3760
+      size: 6343
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -73,8 +73,8 @@ stages:
         model.use_dropouts: true
     outs:
     - path: metrics/plots.csv
-      md5: 0aa5831e03dd631f5c21a7e217c288ba
-      size: 4046
+      md5: 46f5b5e36c517cc5cf084e210810d7c8
+      size: 4042
     - path: model/help_model.h5
-      md5: f7619083047a92cd7e0acd1ab8159676
+      md5: 5a48d789f94b000b9217ccdf57e763d9
       size: 930064
