@@ -55,7 +55,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
                      'solution_distance_total_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
-                     'totalSeconds','request_help'])
+                     'total_seconds','request_help'])
 
     for element in interventions:
 
