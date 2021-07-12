@@ -150,6 +150,7 @@ params_file = sys.argv[1]
 input_csv_file = sys.argv[2]
 output_model_file = sys.argv[3]
 plots_file_name = sys.argv[4]
+metrics_file_name = sys.argv[5]
 
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
@@ -180,9 +181,15 @@ history = model.fit(train_x, train_y, epochs=training_epochs, batch_size=trainin
 # Saving the model
 model.save(output_model_file)
 
-# Saving the plots
+# Saving the plots and metrics
 # convert the history.history dict to a pandas DataFrame:
 hist_df = pd.DataFrame(history.history)
-print(hist_df)
+
+metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean(), 'val_loss': hist_df['val_loss'].mean(), 'val_binary_accuracy': hist_df['val_binary_accuracy'].mean()}
+metrics_df = pd.DataFrame.from_records([metrics_data])
+
 with open(plots_file_name, mode='w') as f:
     hist_df.to_csv(f, index_label='epoch')
+
+with open(metrics_file_name, mode='w') as f:
+    metrics_df.to_csv(f, index=False)
