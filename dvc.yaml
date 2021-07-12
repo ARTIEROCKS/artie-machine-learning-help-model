@@ -28,7 +28,7 @@ stages:
     - data/featureselection.csv
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
-      metrics/plots.csv metrics/scores.csv
+      metrics/plots.csv metrics/scores.json
     deps:
     - data/featureselection.csv
     - src/train.py
@@ -44,9 +44,8 @@ stages:
     - model.use_dropouts
     outs:
     - model/help_model.h5
-    plots:
-    - metrics/plots.csv:
-        cache: false
     metrics:
-    - metrics/scores.csv:
+    - metrics/scores.json:
         cache: false
+    plots:
+    - metrics/plots.csv

@@ -192,4 +192,4 @@ with open(plots_file_name, mode='w') as f:
     hist_df.to_csv(f, index_label='epoch')
 
 with open(metrics_file_name, mode='w') as f:
-    metrics_df.to_csv(f, index=False)
+    metrics_df.to_json(f)
