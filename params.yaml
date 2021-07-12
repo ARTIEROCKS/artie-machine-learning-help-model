@@ -1,17 +1,18 @@
 selection:
-  method: 'filter'
-  target: 'request_help'
+  method: filter
+  target: request_help
   number_of_features: 50
   high_correlation: 0.90
-  drop_columns: ['exercise_is_evaluation', 'valid_solution', 'finished_exercise', 'exercise_skill_paralellism', 'exercise_valid_solution', 'student_motivation']
+  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise, exercise_skill_paralellism,
+    exercise_valid_solution, student_motivation]
 
 model:
   mask_value: -1
   percentage_train_size: 70
   lstm_units: 128
-  return_sequences: True
-  second_lstm_layer: False
-  use_dropouts: True
+  return_sequences: true
+  second_lstm_layer: false
+  use_dropouts: true
   dropout_value: 0.5
   training_epochs: 50
   training_batch_size: 1
