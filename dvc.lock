@@ -67,17 +67,17 @@ stages:
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: false
+        model.second_lstm_layer: true
         model.training_batch_size: 1
         model.training_epochs: 50
         model.use_dropouts: true
     outs:
     - path: metrics/plots.csv
-      md5: 57fbbbb057131f5c4445b87fc126a28f
-      size: 4030
+      md5: 2bb3b2f6712b20b6e8af8f418d57cd13
+      size: 4044
     - path: metrics/scores.json
-      md5: a1deb1b26ebcb850e037c5a4f912e2fa
-      size: 135
+      md5: b9dc44861c92e52f7a5bce86a892b72c
+      size: 134
     - path: model/help_model.h5
-      md5: c946a87d844188f5d9bba20a36b4c7ae
-      size: 930064
+      md5: 26ee2d1e03a398b25380918d707766a0
+      size: 2523488

@@ -11,7 +11,7 @@ model:
   percentage_train_size: 70
   lstm_units: 128
   return_sequences: true
-  second_lstm_layer: false
+  second_lstm_layer: true
   use_dropouts: true
   dropout_value: 0.5
   training_epochs: 50
