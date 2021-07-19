@@ -121,23 +121,25 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train):
 # Function to generate the model
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
                    dropout_value=0.5):
+
     model = Sequential()
     model.add(Masking(mask_value=mask_value, input_shape=shape))
-    model.add(LSTM(lstm_units, return_sequences=return_sequences))
-
-    # If we decide to add a dropout layer
-    if use_dropout:
-        model.add(Dropout(dropout_value))
 
     # If we decide to add a second lstm layer
     if second_lstm_layer:
-        model.add(LSTM(lstm_units, return_sequences=return_sequences))
+        model.add(LSTM(lstm_units, activation='sigmoid'))
+
+    # If we decide to add a dropout layer
+    if use_dropout and second_lstm_layer:
+        model.add(Dropout(dropout_value))
+
+    model.add(LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
 
     # If we decide to add a dropout layer
     if use_dropout:
         model.add(Dropout(dropout_value))
 
-    model.add(TimeDistributed(Dense(1)))
+    model.add(TimeDistributed(Dense(1, activation='sigmoid')))
 
     # Because we are in a binary problem, we use the binary cross entropy
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["binary_accuracy"])
