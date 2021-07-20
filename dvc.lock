@@ -25,14 +25,14 @@ stages:
       size: 818697
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
-      data/featureselection.csv
+      data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
       md5: c044976c49a4039842d10744c419236f
       size: 818697
     - path: src/featureselection.py
-      md5: c6e2bb6041fe277ae1eb31f9d2ecce75
-      size: 2436
+      md5: c5895b64d562124fd355ab0e76c37445
+      size: 2721
     params:
       params.yaml:
         selection.drop_columns:
@@ -50,6 +50,9 @@ stages:
     - path: data/featureselection.csv
       md5: 5f3aea8607c21f4aa7a47c2f7a6785b9
       size: 653047
+    - path: data/selectedfeatures.csv
+      md5: b496c41af5c817b2aa2a3736bc90523c
+      size: 441
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
@@ -58,8 +61,8 @@ stages:
       md5: 5f3aea8607c21f4aa7a47c2f7a6785b9
       size: 653047
     - path: src/train.py
-      md5: dc908b06effc37fdedfd98e4e934fca4
-      size: 6705
+      md5: 329960248c2f2c0bde554e815d842acd
+      size: 6795
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -73,11 +76,11 @@ stages:
         model.use_dropouts: true
     outs:
     - path: metrics/plots.csv
-      md5: 2bb3b2f6712b20b6e8af8f418d57cd13
-      size: 4044
+      md5: a4f2beefb6f38772e84996a026c0992a
+      size: 4162
     - path: metrics/scores.json
-      md5: b9dc44861c92e52f7a5bce86a892b72c
-      size: 134
+      md5: fb05a71882a72bcf81a433af28ff7d69
+      size: 135
     - path: model/help_model.h5
-      md5: 26ee2d1e03a398b25380918d707766a0
+      md5: 33545c26caff9a394e2b0c9e302612a0
       size: 2523488

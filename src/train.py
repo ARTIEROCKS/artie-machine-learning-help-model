@@ -127,7 +127,7 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 
     # If we decide to add a second lstm layer
     if second_lstm_layer:
-        model.add(LSTM(lstm_units, activation='sigmoid'))
+        model.add(LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
 
     # If we decide to add a dropout layer
     if use_dropout and second_lstm_layer:

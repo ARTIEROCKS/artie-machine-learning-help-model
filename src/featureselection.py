@@ -2,6 +2,7 @@ import sys
 import yaml
 import pandas as pd
 import numpy as np
+import csv
 
 
 def load(file, columns_to_delete):
@@ -32,6 +33,7 @@ def drop_high_correlated(cor, selected_features, limit):
 params_file = sys.argv[1]
 input_csv_file = sys.argv[2]
 output_csv_file = sys.argv[3]
+output_selected_columns_file = sys.argv[4]
 
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
@@ -64,6 +66,14 @@ if method == 'filter':
     last_column = len(df.columns) - 1
     X = df.iloc[:, 0:last_column]
     y = df.iloc[:, [last_column]]
+
+    # opening the csv file in 'w+' mode
+    file = open(output_selected_columns_file, 'w+', newline='')
+
+    # writing the data into the file
+    with file:
+        write = csv.writer(file)
+        write.writerow(list(X.columns))
 
 # Writes the output file
 df.to_csv(output_csv_file, sep=',', index=False)

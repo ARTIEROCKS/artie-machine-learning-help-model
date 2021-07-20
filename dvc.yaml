@@ -14,7 +14,7 @@ stages:
     - data/pedagogicalinterventions.csv
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
-      data/featureselection.csv
+      data/featureselection.csv data/selectedfeatures.csv
     deps:
     - data/pedagogicalinterventions.csv
     - src/featureselection.py
@@ -26,6 +26,7 @@ stages:
     - selection.target
     outs:
     - data/featureselection.csv
+    - data/selectedfeatures.csv
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
