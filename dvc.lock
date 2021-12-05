@@ -1,38 +1,38 @@
 schema: '2.0'
 stages:
   download:
-    cmd: python src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
+    cmd: python3 src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
     deps:
     - path: src/download.py
       md5: 6a294a8efad9cb62af438e05070e4eb7
       size: 2325
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: 7f6c83272096010ee38116a4458602d5
-      size: 7019205
+      md5: efab759c9bed654ea598d83b175d6c9b
+      size: 7065581
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: 7f6c83272096010ee38116a4458602d5
-      size: 7019205
+      md5: efab759c9bed654ea598d83b175d6c9b
+      size: 7065581
     - path: src/formatcsv.py
       md5: e95bddf76e345c06bd0f04370e32d265
       size: 9593
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: b6945b9f578335aa55ca85fd8d78c3ec
-      size: 818698
+      md5: c26a3e6c991db45fa376418ce6095118
+      size: 823163
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: b6945b9f578335aa55ca85fd8d78c3ec
-      size: 818698
+      md5: c26a3e6c991db45fa376418ce6095118
+      size: 823163
     - path: src/featureselection.py
-      md5: deb67b768d54fe6314f4b2f29cecd8f1
-      size: 3037
+      md5: 75937019d6ecbc4b14aa030f9e09f338
+      size: 3427
     params:
       params.yaml:
         selection.drop_columns:
@@ -43,17 +43,17 @@ stages:
         - exercise_skill_synchronization
         - exercise_valid_solution
         - student_motivation
-        selection.high_correlation: 0.9
+        selection.high_correlation: 0.85
         selection.method: filter
-        selection.number_of_features: 50
+        selection.number_of_features: 16
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 5f3aea8607c21f4aa7a47c2f7a6785b9
-      size: 653047
+      md5: 0f6dc223da96ceae85a037e2babc2b81
+      size: 490048
     - path: data/selectedfeatures.csv
-      md5: b496c41af5c817b2aa2a3736bc90523c
-      size: 441
+      md5: 4083be346c1e2288574f5ce5476e2edf
+      size: 333
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json

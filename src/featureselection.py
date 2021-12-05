@@ -46,7 +46,8 @@ target = params['selection']['target']
 number_of_features = params['selection']['number_of_features']
 high_correlation = params['selection']['high_correlation']
 drop_columns = params['selection']['drop_columns']
-heatmap_correlation_path = params['selection']['heatmap_correlation_path']
+heatmap_correlation_path_before = params['selection']['heatmap_correlation_path_before']
+heatmap_correlation_path_after = params['selection']['heatmap_correlation_path_after']
 
 df, df_filtered = load(input_csv_file, drop_columns)
 
@@ -56,10 +57,10 @@ if method == 'filter':
     cor_tri = cor.abs().where(np.triu(np.ones(cor.shape), k=1).astype(bool))
     selected_features = filter_method(cor_tri, target, number_of_features)
     selected_features_columns = list(selected_features.to_dict().keys())
-    #Showing the plot
+    #Showing the plot before executing the filter method
     plt.figure(figsize=(12, 10))
     sns.heatmap(cor, annot=True, cmap=plt.cm.Reds)
-    plt.savefig(heatmap_correlation_path, bbox_inches='tight')
+    plt.savefig(heatmap_correlation_path_before, bbox_inches='tight')
     # We add the target in the last column to avoid be deleted
     selected_features_columns.append(target)
     drop_elements = drop_high_correlated(cor_tri, selected_features_columns, high_correlation)
@@ -82,6 +83,12 @@ if method == 'filter':
     with file:
         write = csv.writer(file)
         write.writerow(list(X.columns))
+
+    # Showing the plot after executing the filter method
+    cor = df.corr(method='pearson')
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cor, annot=True, cmap=plt.cm.Reds)
+    plt.savefig(heatmap_correlation_path_after, bbox_inches='tight')
 
 # Writes the output file
 df.to_csv(output_csv_file, sep=',', index=False)
