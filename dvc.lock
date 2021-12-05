@@ -39,21 +39,20 @@ stages:
         - exercise_is_evaluation
         - valid_solution
         - finished_exercise
-        - exercise_skill_parallelism
-        - exercise_skill_synchronization
         - exercise_valid_solution
         - student_motivation
+        - grade
         selection.high_correlation: 0.85
         selection.method: filter
-        selection.number_of_features: 16
+        selection.number_of_features: 20
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 0f6dc223da96ceae85a037e2babc2b81
-      size: 490048
+      md5: 7def7366f5e039d6074af9b6858bfe3a
+      size: 451207
     - path: data/selectedfeatures.csv
-      md5: 4083be346c1e2288574f5ce5476e2edf
-      size: 333
+      md5: 443aaba00719b000c76d1cbb3382f8d4
+      size: 375
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json

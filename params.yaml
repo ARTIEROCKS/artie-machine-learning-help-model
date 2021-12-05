@@ -1,9 +1,9 @@
 selection:
   method: filter
   target: request_help
-  number_of_features: 16
+  number_of_features: 20
   high_correlation: 0.85
-  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise, exercise_skill_parallelism, exercise_skill_synchronization,exercise_valid_solution, student_motivation]
+  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise,exercise_valid_solution, student_motivation, grade]
   heatmap_correlation_path_before: dvc_plots/heatmap_correlation_before.png
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
