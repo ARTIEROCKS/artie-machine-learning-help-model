@@ -17,29 +17,30 @@ stages:
       md5: 7f6c83272096010ee38116a4458602d5
       size: 7019205
     - path: src/formatcsv.py
-      md5: 844be53d1f45247f8d6120ac357b2b70
-      size: 9589
+      md5: e95bddf76e345c06bd0f04370e32d265
+      size: 9593
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: c044976c49a4039842d10744c419236f
-      size: 818697
+      md5: b6945b9f578335aa55ca85fd8d78c3ec
+      size: 818698
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: c044976c49a4039842d10744c419236f
-      size: 818697
+      md5: b6945b9f578335aa55ca85fd8d78c3ec
+      size: 818698
     - path: src/featureselection.py
-      md5: c5895b64d562124fd355ab0e76c37445
-      size: 2721
+      md5: deb67b768d54fe6314f4b2f29cecd8f1
+      size: 3037
     params:
       params.yaml:
         selection.drop_columns:
         - exercise_is_evaluation
         - valid_solution
         - finished_exercise
-        - exercise_skill_paralellism
+        - exercise_skill_parallelism
+        - exercise_skill_synchronization
         - exercise_valid_solution
         - student_motivation
         selection.high_correlation: 0.9

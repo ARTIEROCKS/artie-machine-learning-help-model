@@ -3,6 +3,9 @@ import yaml
 import pandas as pd
 import numpy as np
 import csv
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def load(file, columns_to_delete):
@@ -43,6 +46,7 @@ target = params['selection']['target']
 number_of_features = params['selection']['number_of_features']
 high_correlation = params['selection']['high_correlation']
 drop_columns = params['selection']['drop_columns']
+heatmap_correlation_path = params['selection']['heatmap_correlation_path']
 
 df, df_filtered = load(input_csv_file, drop_columns)
 
@@ -52,6 +56,10 @@ if method == 'filter':
     cor_tri = cor.abs().where(np.triu(np.ones(cor.shape), k=1).astype(bool))
     selected_features = filter_method(cor_tri, target, number_of_features)
     selected_features_columns = list(selected_features.to_dict().keys())
+    #Showing the plot
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cor, annot=True, cmap=plt.cm.Reds)
+    plt.savefig(heatmap_correlation_path, bbox_inches='tight')
     # We add the target in the last column to avoid be deleted
     selected_features_columns.append(target)
     drop_elements = drop_high_correlated(cor_tri, selected_features_columns, high_correlation)

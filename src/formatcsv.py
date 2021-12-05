@@ -47,10 +47,10 @@ def getfirstaction(interventions):
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     row_list = []
     row_list.append(['student_gender', 'student_mother_tongue', 'student_age', 'student_competence',
-                     'student_motivation', 'exercise_skill_paralellism', 'exercise_skill_logical_thinking',
+                     'student_motivation', 'exercise_skill_parallelism', 'exercise_skill_logical_thinking',
                      'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
                      'exercise_skill_information_representation',
-                     'exercise_skill_abstraction', 'exercise_skill_syncronization', 'exercise_valid_solution',
+                     'exercise_skill_abstraction', 'exercise_skill_synchronization', 'exercise_valid_solution',
                      'exercise_is_evaluation',
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
@@ -66,13 +66,13 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         student_competence = 0
         student_motivation = 0
 
-        exercise_skill_paralellism = 0
+        exercise_skill_parallelism = 0
         exercise_skill_logical_thinking = 0
         exercise_skill_flow_control = 0
         exercise_skill_user_interactivity = 0
         exercise_skill_information_representation = 0
         exercise_skill_abstraction = 0
-        exercise_skill_syncronization = 0
+        exercise_skill_synchronization = 0
         exercise_valid_solution = 0
         exercise_level = 0
         solution_distance_family_distance = 0
@@ -130,7 +130,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             if 'skills' in element['exercise']:
                 for skill in element['exercise']['skills']:
                     if skill['name'] == 'Paralelismo':
-                        exercise_skill_paralellism = skill['score']
+                        exercise_skill_parallelism = skill['score']
                     elif skill['name'] == 'Pensamiento lógico':
                         exercise_skill_logical_thinking = skill['score']
                     elif skill['name'] == 'Control de flujo':
@@ -142,7 +142,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                     elif skill['name'] == 'Abstracción':
                         exercise_skill_abstraction = skill['score']
                     elif skill['name'] == 'Sincronización':
-                        exercise_skill_syncronization = skill['score']
+                        exercise_skill_synchronization = skill['score']
             if 'valid_solution' in element['exercise']:
                 exercise_valid_solution = element['exercise']['valid_solution']
             if 'isEvaluation' in element['exercise']:
@@ -176,10 +176,10 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
         # Creating  the row of the csv
         row_list.append([student_gender, student_mother_tongue, student_age, student_competence,
-                         student_motivation, exercise_skill_paralellism, exercise_skill_logical_thinking,
+                         student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                          exercise_skill_flow_control, exercise_skill_user_interactivity,
                          exercise_skill_information_representation,
-                         exercise_skill_abstraction, exercise_skill_syncronization, exercise_valid_solution,
+                         exercise_skill_abstraction, exercise_skill_synchronization, exercise_valid_solution,
                          int(exercise_is_evaluation),
                          exercise_level, solution_distance_family_distance, solution_distance_element_distance,
                          solution_distance_position_distance, solution_distance_input_distance,
