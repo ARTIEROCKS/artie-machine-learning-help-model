@@ -58,8 +58,8 @@ stages:
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 5f3aea8607c21f4aa7a47c2f7a6785b9
-      size: 653047
+      md5: 7def7366f5e039d6074af9b6858bfe3a
+      size: 451207
     - path: src/train.py
       md5: 329960248c2f2c0bde554e815d842acd
       size: 6795
@@ -76,11 +76,11 @@ stages:
         model.use_dropouts: true
     outs:
     - path: metrics/plots.csv
-      md5: a4f2beefb6f38772e84996a026c0992a
-      size: 4162
+      md5: 2274d223b0c1cf2182b2c77d1a5e8cf9
+      size: 4170
     - path: metrics/scores.json
-      md5: fb05a71882a72bcf81a433af28ff7d69
-      size: 135
+      md5: 9aa4ff963ec3f2d040333a2ecaa2d44a
+      size: 134
     - path: model/help_model.h5
-      md5: 33545c26caff9a394e2b0c9e302612a0
-      size: 2523488
+      md5: 76f13269c77af2f03f304ba6f19df7a7
+      size: 2505880
