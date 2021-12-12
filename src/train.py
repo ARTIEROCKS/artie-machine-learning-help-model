@@ -189,7 +189,7 @@ model.save(output_model_file)
 #If we want to show the summary
 if show_summary:
     model.summary()
-    tf.keras.utils.plot_model(model, to_file='images/model.png')
+    tf.keras.utils.plot_model(model, to_file='images/model.png', dpi=200)
 
 # Saving the plots and metrics
 # convert the history.history dict to a pandas DataFrame:
