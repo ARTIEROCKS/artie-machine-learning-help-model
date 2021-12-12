@@ -6,6 +6,7 @@ import yaml
 np.random.seed(0)
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
+from keras.utils.vis_utils import plot_model
 np.random.seed(1)
 
 
@@ -169,6 +170,8 @@ dropout_value = params['model']['dropout_value']
 training_epochs = params['model']['training_epochs']
 training_batch_size = params['model']['training_batch_size']
 
+show_summary = params['model']['show_summary']
+
 # Loads the data file and gets the maximum time steps and the number of columns
 df, max_time_steps, columns = load(input_csv_file)
 
@@ -179,6 +182,11 @@ df, train_x, train_y, test_x, test_y = load_time_series(df,max_time_steps, colum
 shape = (None, train_x.shape[2])
 model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
 history = model.fit(train_x, train_y, epochs=training_epochs, batch_size=training_batch_size, validation_data=(test_x, test_y), verbose=2, shuffle=False)
+
+#If we want to show the summary
+if show_summary:
+    model.summary()
+    plot_model(model, to_file='images/model.png')
 
 # Saving the model
 model.save(output_model_file)
