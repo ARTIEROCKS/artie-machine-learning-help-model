@@ -67,26 +67,27 @@ stages:
       md5: 7def7366f5e039d6074af9b6858bfe3a
       size: 451207
     - path: src/train.py
-      md5: 329960248c2f2c0bde554e815d842acd
-      size: 6795
+      md5: f7c17621c0ffcb9a12a129c357bc3e8d
+      size: 7002
     params:
       params.yaml:
         model.dropout_value: 0.5
-        model.lstm_units: 128
+        model.lstm_units: 256
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
+        model.show_summary: true
         model.training_batch_size: 1
         model.training_epochs: 50
-        model.use_dropouts: true
+        model.use_dropouts: false
     outs:
     - path: metrics/plots.csv
-      md5: 2274d223b0c1cf2182b2c77d1a5e8cf9
+      md5: 88658db1b75ce6c6a870bb211752ae7f
       size: 4170
     - path: metrics/scores.json
-      md5: 9aa4ff963ec3f2d040333a2ecaa2d44a
-      size: 134
+      md5: ae4e95c44048b0fd5db2e09979ac697a
+      size: 135
     - path: model/help_model.h5
-      md5: 76f13269c77af2f03f304ba6f19df7a7
-      size: 2505880
+      md5: f21acc795f2425eddda778564a170b5b
+      size: 3363864
