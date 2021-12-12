@@ -67,8 +67,8 @@ stages:
       md5: 7def7366f5e039d6074af9b6858bfe3a
       size: 451207
     - path: src/train.py
-      md5: 37d82ff5830821999b0e5367db924294
-      size: 7293
+      md5: cb5e5cb3aebad8a67a6699d0bc2146fe
+      size: 7011
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -80,17 +80,17 @@ stages:
         model.show_summary: true
         model.training_batch_size: 1
         model.training_epochs: 50
-        model.use_dropouts: false
+        model.use_dropouts: true
     outs:
     - path: images/model.png
-      md5: e53f39a598e002764d6a7a7f9f6350e5
-      size: 12544
+      md5: f08e89dde757e5207d2b86db43d73bad
+      size: 38370
     - path: metrics/plots.csv
-      md5: 486da53b9164cf2f06db1bad2f602b32
-      size: 4171
+      md5: 238606ae45e75a20f93ca6736e30639e
+      size: 4159
     - path: metrics/scores.json
-      md5: 2c3f0f506f8c58fbaa5cdd686c60557a
+      md5: 68a9fe61e62daf337991b5e9de7fd9cb
       size: 135
     - path: model/help_model.h5
-      md5: 9260e407a39d17dc9653994d720b8397
-      size: 3363864
+      md5: f729ba67a1f07ae7747071485585bd3f
+      size: 3364800

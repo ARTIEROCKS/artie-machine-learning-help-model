@@ -14,7 +14,7 @@ model:
   lstm_units: 256
   return_sequences: true
   second_lstm_layer: false
-  use_dropouts: false
+  use_dropouts: true
   dropout_value: 0.5
   training_epochs: 50
   training_batch_size: 1
