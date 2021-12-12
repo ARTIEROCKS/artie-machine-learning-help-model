@@ -53,6 +53,12 @@ stages:
     - path: data/selectedfeatures.csv
       md5: 443aaba00719b000c76d1cbb3382f8d4
       size: 375
+    - path: images/heatmap_correlation_after.png
+      md5: 9b7e98e823fe329a75046b6b153d6824
+      size: 255642
+    - path: images/heatmap_correlation_before.png
+      md5: 2f1816f8dde95f83dabf7125a0888f0d
+      size: 318974
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
