@@ -3,7 +3,8 @@ selection:
   target: request_help
   number_of_features: 20
   high_correlation: 0.85
-  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise,exercise_valid_solution, student_motivation, grade]
+  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise, exercise_valid_solution,
+    student_motivation, grade]
   heatmap_correlation_path_before: dvc_plots/heatmap_correlation_before.png
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
@@ -17,4 +18,4 @@ model:
   dropout_value: 0.5
   training_epochs: 50
   training_batch_size: 1
-  show_summary: false
+  show_summary: true

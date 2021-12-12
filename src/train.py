@@ -3,10 +3,10 @@ import numpy as np
 import math
 import sys
 import yaml
+import tensorflow as tf
 np.random.seed(0)
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
-from keras.utils.vis_utils import plot_model
 np.random.seed(1)
 
 
@@ -183,13 +183,13 @@ shape = (None, train_x.shape[2])
 model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
 history = model.fit(train_x, train_y, epochs=training_epochs, batch_size=training_batch_size, validation_data=(test_x, test_y), verbose=2, shuffle=False)
 
+# Saving the model
+model.save(output_model_file)
+
 #If we want to show the summary
 if show_summary:
     model.summary()
-    plot_model(model, to_file='images/model.png')
-
-# Saving the model
-model.save(output_model_file)
+    tf.keras.utils.plot_model(model, to_file='images/model.png')
 
 # Saving the plots and metrics
 # convert the history.history dict to a pandas DataFrame:

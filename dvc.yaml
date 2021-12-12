@@ -27,6 +27,8 @@ stages:
     outs:
     - data/featureselection.csv
     - data/selectedfeatures.csv
+    - images/heatmap_correlation_after.png
+    - images/heatmap_correlation_before.png
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
