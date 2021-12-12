@@ -1,5 +1,6 @@
 [core]
     remote = artie
+    autostage = true
 ['remote "artie"']
     url = s3://artie.ml.prod/dvc-storage-help-model
     endpointurl = http://bucket.artie.rocks:9000
