@@ -43,6 +43,7 @@ stages:
     - model.training_batch_size
     - model.training_epochs
     - model.use_dropouts
+    - model.show_summary
     outs:
     - model/help_model.h5
     metrics:
