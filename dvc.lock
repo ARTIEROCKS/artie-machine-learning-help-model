@@ -8,28 +8,28 @@ stages:
       size: 2325
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: efab759c9bed654ea598d83b175d6c9b
-      size: 7065581
+      md5: fdf151397882da9a4ae189ebf84e860f
+      size: 11665334
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: efab759c9bed654ea598d83b175d6c9b
-      size: 7065581
+      md5: fdf151397882da9a4ae189ebf84e860f
+      size: 11665334
     - path: src/formatcsv.py
       md5: e95bddf76e345c06bd0f04370e32d265
       size: 9593
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: c26a3e6c991db45fa376418ce6095118
-      size: 823163
+      md5: a1ec3a12890e0e88df403d2a7ccb398f
+      size: 1288587
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: c26a3e6c991db45fa376418ce6095118
-      size: 823163
+      md5: a1ec3a12890e0e88df403d2a7ccb398f
+      size: 1288587
     - path: src/featureselection.py
       md5: 75937019d6ecbc4b14aa030f9e09f338
       size: 3427
@@ -48,24 +48,24 @@ stages:
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 7def7366f5e039d6074af9b6858bfe3a
-      size: 451207
+      md5: 83a02a0d0bee7cecef62532749585212
+      size: 752862
     - path: data/selectedfeatures.csv
-      md5: 443aaba00719b000c76d1cbb3382f8d4
-      size: 375
-    - path: images/heatmap_correlation_after.png
-      md5: 9b7e98e823fe329a75046b6b153d6824
-      size: 255642
-    - path: images/heatmap_correlation_before.png
-      md5: 2f1816f8dde95f83dabf7125a0888f0d
-      size: 318974
+      md5: 698e95e971dd741e40465a9c3d69232a
+      size: 402
+    - path: dvc_plots/heatmap_correlation_after.png
+      md5: 537e8209bbbb89672175149272faf6e4
+      size: 270606
+    - path: dvc_plots/heatmap_correlation_before.png
+      md5: 831b7e4a2760cc74d67c61a087f40f05
+      size: 335145
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 7def7366f5e039d6074af9b6858bfe3a
-      size: 451207
+      md5: 83a02a0d0bee7cecef62532749585212
+      size: 752862
     - path: src/train.py
       md5: cb5e5cb3aebad8a67a6699d0bc2146fe
       size: 7011
@@ -76,21 +76,34 @@ stages:
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: false
+        model.second_lstm_layer: true
         model.show_summary: true
         model.training_batch_size: 1
-        model.training_epochs: 50
+        model.training_epochs: 1
         model.use_dropouts: true
     outs:
     - path: images/model.png
-      md5: f08e89dde757e5207d2b86db43d73bad
-      size: 38370
+      md5: ede8c57a8295da071aae260bbda3dd2e
+      size: 51648
     - path: metrics/plots.csv
-      md5: 238606ae45e75a20f93ca6736e30639e
-      size: 4159
+      md5: 0cfe7a792b882bcb3b252ab00abe869a
+      size: 138
     - path: metrics/scores.json
-      md5: 68a9fe61e62daf337991b5e9de7fd9cb
+      md5: c5923d8c7553a2564f5f4415952009c3
       size: 135
     - path: model/help_model.h5
-      md5: f729ba67a1f07ae7747071485585bd3f
-      size: 3364800
+      md5: 2f330d5eb81e32ab25d003c1b08605dc
+      size: 9696232
+  transformationdr:
+    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
+    deps:
+    - path: data/pedagogicalinterventions.json
+      md5: fdf151397882da9a4ae189ebf84e860f
+      size: 11665334
+    - path: src/formatcsv.py
+      md5: e95bddf76e345c06bd0f04370e32d265
+      size: 9593
+    outs:
+    - path: data/pedagogicalinterventions_datarobot.csv
+      md5: a9fb52a7d37711f20908dfabb5f1f7bb
+      size: 2432050
