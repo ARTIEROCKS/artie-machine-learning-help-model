@@ -12,6 +12,13 @@ stages:
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
+  transformationdr:
+    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
+    deps:
+    - data/pedagogicalinterventions.json
+    - src/formatcsv.py
+    outs:
+    - data/pedagogicalinterventions_datarobot.csv
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
@@ -27,8 +34,8 @@ stages:
     outs:
     - data/featureselection.csv
     - data/selectedfeatures.csv
-    - images/heatmap_correlation_after.png
-    - images/heatmap_correlation_before.png
+    - dvc_plots/heatmap_correlation_after.png
+    - dvc_plots/heatmap_correlation_before.png
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json

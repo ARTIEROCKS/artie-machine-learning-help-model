@@ -79,7 +79,7 @@ stages:
         model.second_lstm_layer: true
         model.show_summary: true
         model.training_batch_size: 1
-        model.training_epochs: 1
+        model.training_epochs: 50
         model.use_dropouts: true
     outs:
     - path: images/model.png
@@ -105,5 +105,5 @@ stages:
       size: 9593
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
-      md5: a9fb52a7d37711f20908dfabb5f1f7bb
-      size: 2432050
+      md5: 1b54b1dce67b5c5d48f9c6c36030c72b
+      size: 2196270
