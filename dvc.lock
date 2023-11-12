@@ -42,23 +42,24 @@ stages:
         - exercise_valid_solution
         - student_motivation
         - grade
+        - student_gender
         selection.high_correlation: 0.85
         selection.method: filter
         selection.number_of_features: 20
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 83a02a0d0bee7cecef62532749585212
-      size: 752862
+      md5: 5b12bbf8af415abc82f6123f02e6cf7b
+      size: 729267
     - path: data/selectedfeatures.csv
-      md5: 698e95e971dd741e40465a9c3d69232a
-      size: 402
+      md5: dc7c182442d30a4cef52c8aec7f3131e
+      size: 387
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: 537e8209bbbb89672175149272faf6e4
-      size: 270606
+      md5: 37098f5c3abeab4f2e6731229687e36b
+      size: 246634
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: 831b7e4a2760cc74d67c61a087f40f05
-      size: 335145
+      md5: 46970e7b450d8a0c15d79bbfec6e5cb6
+      size: 312546
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json

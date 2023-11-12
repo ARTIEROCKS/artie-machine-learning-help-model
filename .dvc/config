@@ -1,7 +1,9 @@
 [core]
-    remote = artie
+    remote = s3-help-model
     autostage = true
 ['remote "artie"']
     url = s3://artie.ml.prod/dvc-storage-help-model
     endpointurl = http://bucket.artie.rocks:9000
     use_ssl = false
+['remote "s3-help-model"']
+    url = s3://artie-ml/dvc-storage-help-model/
