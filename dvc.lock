@@ -42,31 +42,30 @@ stages:
         - exercise_valid_solution
         - student_motivation
         - grade
-        - student_gender
         selection.high_correlation: 0.85
         selection.method: filter
         selection.number_of_features: 20
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 5b12bbf8af415abc82f6123f02e6cf7b
-      size: 729267
+      md5: 83a02a0d0bee7cecef62532749585212
+      size: 752862
     - path: data/selectedfeatures.csv
-      md5: dc7c182442d30a4cef52c8aec7f3131e
-      size: 387
+      md5: 698e95e971dd741e40465a9c3d69232a
+      size: 402
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: 37098f5c3abeab4f2e6731229687e36b
-      size: 246634
+      md5: 537e8209bbbb89672175149272faf6e4
+      size: 270606
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: 46970e7b450d8a0c15d79bbfec6e5cb6
-      size: 312546
+      md5: 831b7e4a2760cc74d67c61a087f40f05
+      size: 335145
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 83a02a0d0bee7cecef62532749585212
-      size: 752862
+      md5: 5b12bbf8af415abc82f6123f02e6cf7b
+      size: 729267
     - path: src/train.py
       md5: cb5e5cb3aebad8a67a6699d0bc2146fe
       size: 7011
@@ -84,17 +83,17 @@ stages:
         model.use_dropouts: true
     outs:
     - path: images/model.png
-      md5: ede8c57a8295da071aae260bbda3dd2e
-      size: 51648
+      md5: 2078729a32e12e86b06516bb2ce7ff5b
+      size: 52170
     - path: metrics/plots.csv
-      md5: 0cfe7a792b882bcb3b252ab00abe869a
-      size: 138
+      md5: aab4d3ab37cf77e05be72ff374ffd109
+      size: 4986
     - path: metrics/scores.json
-      md5: c5923d8c7553a2564f5f4415952009c3
+      md5: 13854bea69850d11ff71631ee6bcfd37
       size: 135
     - path: model/help_model.h5
-      md5: 2f330d5eb81e32ab25d003c1b08605dc
-      size: 9696232
+      md5: 060b9191ca8f32c2652085936d645cf7
+      size: 9684096
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
     deps:
