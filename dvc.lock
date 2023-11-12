@@ -64,11 +64,11 @@ stages:
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 5b12bbf8af415abc82f6123f02e6cf7b
-      size: 729267
+      md5: 83a02a0d0bee7cecef62532749585212
+      size: 752862
     - path: src/train.py
-      md5: cb5e5cb3aebad8a67a6699d0bc2146fe
-      size: 7011
+      md5: d09e6ae64c3f39093a733d2ea3e18293
+      size: 7158
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -86,14 +86,14 @@ stages:
       md5: 2078729a32e12e86b06516bb2ce7ff5b
       size: 52170
     - path: metrics/plots.csv
-      md5: aab4d3ab37cf77e05be72ff374ffd109
-      size: 4986
+      md5: 130b1d2f99e6ac3ad1784740f1fa4fd5
+      size: 4990
     - path: metrics/scores.json
-      md5: 13854bea69850d11ff71631ee6bcfd37
-      size: 135
+      md5: 9d1868201569ea147e54463228578080
+      size: 185
     - path: model/help_model.h5
-      md5: 060b9191ca8f32c2652085936d645cf7
-      size: 9684096
+      md5: 1445b836968b27c89ffa0322052c3ef5
+      size: 9696384
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
     deps:

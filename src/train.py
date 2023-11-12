@@ -143,7 +143,7 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
     model.add(TimeDistributed(Dense(1, activation='sigmoid')))
 
     # Because we are in a binary problem, we use the binary cross entropy
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["binary_accuracy", tf.keras.metrics.Precision(), tf.keras.metrics.Recall(thresholds=0)])
+    model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False), optimizer='adam', metrics=["binary_accuracy", tf.keras.metrics.Precision(), tf.keras.metrics.Recall(thresholds=0)])
 
     return model
 
@@ -195,7 +195,7 @@ if show_summary:
 # convert the history.history dict to a pandas DataFrame:
 hist_df = pd.DataFrame(history.history)
 
-metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean(), 'precision': hist_df['precision'].mean(), 'recall': hist_df['recall'].mean() ,'val_loss': hist_df['val_loss'].mean(), 'val_binary_accuracy': hist_df['val_binary_accuracy'].mean()}
+metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean(), 'precision': hist_df['precision'].mean(), 'recall': hist_df['recall'].mean(),'val_loss': hist_df['val_loss'].mean(), 'val_binary_accuracy': hist_df['val_binary_accuracy'].mean()}
 metrics_df = pd.DataFrame.from_records([metrics_data])
 
 with open(plots_file_name, mode='w') as f:
