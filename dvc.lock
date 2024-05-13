@@ -1,35 +1,35 @@
 schema: '2.0'
 stages:
   download:
-    cmd: python3 src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
+    cmd: python3 src/download.py data localhost 27017 artie_u ArtieU123 artie
     deps:
     - path: src/download.py
-      md5: 6a294a8efad9cb62af438e05070e4eb7
-      size: 2325
+      md5: 252063a7fe510449765914dcad88e8df
+      size: 2531
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: fdf151397882da9a4ae189ebf84e860f
-      size: 11665334
+      md5: a8b4904976613ae7047cfffbe018e8a3
+      size: 14121912
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: fdf151397882da9a4ae189ebf84e860f
-      size: 11665334
+      md5: a8b4904976613ae7047cfffbe018e8a3
+      size: 14121912
     - path: src/formatcsv.py
       md5: e95bddf76e345c06bd0f04370e32d265
       size: 9593
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: a1ec3a12890e0e88df403d2a7ccb398f
-      size: 1288587
+      md5: 468050c42ec4af83ed0a82dca35201af
+      size: 1111878
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: a1ec3a12890e0e88df403d2a7ccb398f
-      size: 1288587
+      md5: 468050c42ec4af83ed0a82dca35201af
+      size: 1111878
     - path: src/featureselection.py
       md5: 75937019d6ecbc4b14aa030f9e09f338
       size: 3427
@@ -48,24 +48,24 @@ stages:
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 83a02a0d0bee7cecef62532749585212
-      size: 752862
+      md5: c620a5bb3ee4160c86e965005e6dcc84
+      size: 690454
     - path: data/selectedfeatures.csv
       md5: 698e95e971dd741e40465a9c3d69232a
       size: 402
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: 537e8209bbbb89672175149272faf6e4
-      size: 270606
+      md5: 60786a41aa165edfc037c15e5f1e206a
+      size: 268862
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: 831b7e4a2760cc74d67c61a087f40f05
-      size: 335145
+      md5: bddba096b92b3d87edaeb950f61f66eb
+      size: 331536
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 83a02a0d0bee7cecef62532749585212
-      size: 752862
+      md5: c620a5bb3ee4160c86e965005e6dcc84
+      size: 690454
     - path: src/train.py
       md5: 733b07343237a82659a65793ac908d3c
       size: 7189
@@ -83,27 +83,27 @@ stages:
         model.use_dropouts: true
     outs:
     - path: images/model.png
-      md5: 2078729a32e12e86b06516bb2ce7ff5b
-      size: 52170
+      md5: ef1d310112046d5b451c8d3d820b269d
+      size: 30232
     - path: metrics/plots.csv
-      md5: 435a35e7f83d2c713818f9c6775946f1
-      size: 5031
+      md5: a40beec754de767c5226d6886bef4f41
+      size: 5669
     - path: metrics/scores.json
-      md5: 3a9c1ffcf7a6835baa6f74b5040b4195
+      md5: 154d61592ad9f8a2eba25886871ab015
       size: 185
     - path: model/help_model.h5
-      md5: 919e8a674f8af5f817809ee01e72e2ef
-      size: 9696384
+      md5: f653a00858b16782fdd12e3ca3d71b73
+      size: 9690456
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: fdf151397882da9a4ae189ebf84e860f
-      size: 11665334
+      md5: a8b4904976613ae7047cfffbe018e8a3
+      size: 14121912
     - path: src/formatcsv.py
       md5: e95bddf76e345c06bd0f04370e32d265
       size: 9593
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
-      md5: 1b54b1dce67b5c5d48f9c6c36030c72b
-      size: 2196270
+      md5: c1a64464c8747bff6cf2df7c32a5d5de
+      size: 2031901
