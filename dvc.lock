@@ -74,7 +74,7 @@ stages:
         model.dropout_value: 0.5
         model.lstm_units: 256
         model.mask_value: -1
-        model.percentage_train_size: 70
+        model.percentage_train_size: 75
         model.return_sequences: true
         model.second_lstm_layer: true
         model.show_summary: true
@@ -86,13 +86,13 @@ stages:
       md5: ef1d310112046d5b451c8d3d820b269d
       size: 30232
     - path: metrics/plots.csv
-      md5: ff690f0b9f4203c0e91bac19c5542e9d
-      size: 5601
+      md5: 12388a123ce3a6ff253cef0a750f4f74
+      size: 5552
     - path: metrics/scores.json
-      md5: 2b5d2a440cd77d683ab04b0e0bc4ebee
-      size: 184
+      md5: 7a759a6b73abe79678ff5eb4b5c7e6ec
+      size: 185
     - path: model/help_model.h5
-      md5: ef1963e2b1854083575f79f15c09a69e
+      md5: 69b3cd17847791ba33ff379ab45027df
       size: 9690456
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
@@ -101,8 +101,8 @@ stages:
       md5: a8b4904976613ae7047cfffbe018e8a3
       size: 14121912
     - path: src/formatcsv.py
-      md5: e95bddf76e345c06bd0f04370e32d265
-      size: 9593
+      md5: 7db8451a20cc607717a86fbda948fbb7
+      size: 9877
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
       md5: c1a64464c8747bff6cf2df7c32a5d5de
