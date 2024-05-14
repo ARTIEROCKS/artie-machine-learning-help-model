@@ -17,19 +17,19 @@ stages:
       md5: a8b4904976613ae7047cfffbe018e8a3
       size: 14121912
     - path: src/formatcsv.py
-      md5: e95bddf76e345c06bd0f04370e32d265
-      size: 9593
+      md5: 7db8451a20cc607717a86fbda948fbb7
+      size: 9877
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: 468050c42ec4af83ed0a82dca35201af
-      size: 1111878
+      md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
+      size: 1255966
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: 468050c42ec4af83ed0a82dca35201af
-      size: 1111878
+      md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
+      size: 1255966
     - path: src/featureselection.py
       md5: 75937019d6ecbc4b14aa030f9e09f338
       size: 3427
@@ -48,27 +48,27 @@ stages:
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: c620a5bb3ee4160c86e965005e6dcc84
-      size: 690454
+      md5: 2e425b3f4b89b1af76d9b9753205a62b
+      size: 845171
     - path: data/selectedfeatures.csv
-      md5: 698e95e971dd741e40465a9c3d69232a
-      size: 402
+      md5: 1535ffa739a9362802ac472b2300a7a5
+      size: 428
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: 60786a41aa165edfc037c15e5f1e206a
-      size: 268862
+      md5: f3795cef677a3fe3bb1013eaaee7c120
+      size: 295421
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: bddba096b92b3d87edaeb950f61f66eb
-      size: 331536
+      md5: d4b557676e3d2917073ab55118c66b6b
+      size: 361018
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: c620a5bb3ee4160c86e965005e6dcc84
-      size: 690454
+      md5: 2e425b3f4b89b1af76d9b9753205a62b
+      size: 845171
     - path: src/train.py
-      md5: 733b07343237a82659a65793ac908d3c
-      size: 7189
+      md5: a23bfe1b760cf7d89e066348cb144a9c
+      size: 7904
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -86,13 +86,13 @@ stages:
       md5: ef1d310112046d5b451c8d3d820b269d
       size: 30232
     - path: metrics/plots.csv
-      md5: a40beec754de767c5226d6886bef4f41
-      size: 5669
+      md5: ff690f0b9f4203c0e91bac19c5542e9d
+      size: 5601
     - path: metrics/scores.json
-      md5: 154d61592ad9f8a2eba25886871ab015
-      size: 185
+      md5: 2b5d2a440cd77d683ab04b0e0bc4ebee
+      size: 184
     - path: model/help_model.h5
-      md5: f653a00858b16782fdd12e3ca3d71b73
+      md5: ef1963e2b1854083575f79f15c09a69e
       size: 9690456
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv

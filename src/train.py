@@ -61,9 +61,17 @@ def padding_masking(time_series_x, time_series_y, max_time_steps, columns, mask_
 
 
 # Function to load the time series and separates it into features and class
-def load_time_series(df, max_time_steps, columns, mask_value, percentage_train):
+def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, distance_calculation_type):
     # Reading the data and separating the features from the target
-    df_X = df.drop(axis=1, columns=["request_help"])
+    if distance_calculation_type.lower() == 'artie':
+        df_X = df.drop(axis=1, columns=["request_help", "apted_distance", "tree_grade"])
+        columns -= 2
+    else:
+        df_X = df.drop(axis=1, columns=["request_help", "solution_distance_family_distance",
+                                        "solution_distance_element_distance", "solution_distance_position_distance",
+                                        "solution_distance_input_distance", "solution_distance_total_distance",
+                                        "grade"])
+        columns -= 6
     df_y = df["request_help"]
 
     last_step_seconds = -1
@@ -158,6 +166,8 @@ metrics_file_name = sys.argv[5]
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
 
+distance_calculation_type = params['model']['distance_calculation_type'] # ARTIE or APTED
+
 mask_value = params['model']['mask_value']
 percentage_train_size = params['model']['percentage_train_size']
 
@@ -176,7 +186,8 @@ show_summary = params['model']['show_summary']
 df, max_time_steps, columns = load(input_csv_file)
 
 # Loading the training and tests sets and fill the data with the mask value until the max time steps has been reached
-df, train_x, train_y, test_x, test_y = load_time_series(df,max_time_steps, columns, mask_value, percentage_train_size)
+df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, columns, mask_value, percentage_train_size,
+                                                        distance_calculation_type)
 
 # Executing the training
 shape = (None, train_x.shape[2])

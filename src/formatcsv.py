@@ -54,8 +54,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                      'exercise_is_evaluation',
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
-                     'solution_distance_total_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
-                     'total_seconds','request_help'])
+                     'solution_distance_total_distance', 'apted_distance', 'seconds_help_open', 'finished_exercise',
+                     'valid_solution', 'grade', 'tree_grade', 'total_seconds','request_help'])
 
     for element in interventions:
 
@@ -80,9 +80,11 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         solution_distance_position_distance = 0
         solution_distance_input_distance = 0
         solution_distance_total_distance = 0
+        apted_distance = 0
         seconds_help_open = 0
         valid_solution = 0
         grade = 0
+        tree_grade = 0
 
         exercise_is_evaluation = False
         request_help = False
@@ -163,6 +165,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             if 'totalDistance' in element['solutionDistance']:
                 solution_distance_total_distance = element['solutionDistance']['totalDistance']
 
+        if 'aptedDistance' in element:
+            apted_distance = element['aptedDistance']
         if 'requestHelp' in element:
             request_help = element['requestHelp']
         if 'secondsHelpOpen' in element:
@@ -173,6 +177,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             valid_solution = element['validSolution']
         if 'grade' in element:
             grade = element['grade']
+        if 'treeGrade' in element:
+            tree_grade = element['treeGrade']
 
         # Creating  the row of the csv
         row_list.append([student_gender, student_mother_tongue, student_age, student_competence,
@@ -183,8 +189,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                          int(exercise_is_evaluation),
                          exercise_level, solution_distance_family_distance, solution_distance_element_distance,
                          solution_distance_position_distance, solution_distance_input_distance,
-                         solution_distance_total_distance,
-                         seconds_help_open, int(finished_exercise), valid_solution, grade, total_seconds,
+                         solution_distance_total_distance, apted_distance,
+                         seconds_help_open, int(finished_exercise), valid_solution, grade, tree_grade, total_seconds,
                          int(request_help)])
 
     return row_list
