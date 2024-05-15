@@ -14,7 +14,7 @@ selection:
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
 model:
-  distance_calculation_type: ARTIE
+  distance_calculation_type: APTED
   mask_value: -1
   percentage_train_size: 75
   lstm_units: 256
