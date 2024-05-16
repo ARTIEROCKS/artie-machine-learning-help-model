@@ -10,6 +10,12 @@ selection:
   - exercise_valid_solution
   - student_motivation
   - grade
+  - tree_grade
+  - apted_distance
+  - solution_distance_family_distance
+  - solution_distance_element_distance
+  - solution_distance_position_distance
+  - solution_distance_input_distance
   heatmap_correlation_path_before: dvc_plots/heatmap_correlation_before.png
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
