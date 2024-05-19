@@ -62,16 +62,24 @@ def padding_masking(time_series_x, time_series_y, max_time_steps, columns, mask_
 
 # Function to load the time series and separates it into features and class
 def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, distance_calculation_type):
-    # Reading the data and separating the features from the target
+
+    # Determina qué columnas eliminar
+    apted_columns = ["request_help", "apted_distance", "tree_grade"]
+    artie_columns = ["request_help", "solution_distance_family_distance", "solution_distance_element_distance",
+                     "solution_distance_position_distance", "solution_distance_input_distance",
+                     "solution_distance_total_distance", "grade"]
+
     if distance_calculation_type.lower() == 'artie':
-        df_X = df.drop(axis=1, columns=["request_help", "apted_distance", "tree_grade"])
-        columns -= 2
+        cols_to_drop = [col for col in apted_columns if col in df.columns]
     else:
-        df_X = df.drop(axis=1, columns=["request_help", "solution_distance_family_distance",
-                                        "solution_distance_element_distance", "solution_distance_position_distance",
-                                        "solution_distance_input_distance", "solution_distance_total_distance",
-                                        "grade"])
-        columns -= 6
+        cols_to_drop = [col for col in artie_columns if col in df.columns]
+
+    # Elimina las columnas del DataFrame
+    df_X = df.drop(axis=1, columns=cols_to_drop)
+
+    # Actualiza el número de columnas basándose en las columnas actuales en df_X
+    columns = df_X.shape[1]
+
     df_y = df["request_help"]
 
     last_step_seconds = -1

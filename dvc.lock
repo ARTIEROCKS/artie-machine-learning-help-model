@@ -42,33 +42,39 @@ stages:
         - exercise_valid_solution
         - student_motivation
         - grade
+        - tree_grade
+        - apted_distance
+        - solution_distance_family_distance
+        - solution_distance_element_distance
+        - solution_distance_position_distance
+        - solution_distance_input_distance
         selection.high_correlation: 0.85
         selection.method: filter
         selection.number_of_features: 20
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: 2e425b3f4b89b1af76d9b9753205a62b
-      size: 845171
+      md5: e5215765ddc547ad8b88bbfbdd92bb39
+      size: 621050
     - path: data/selectedfeatures.csv
-      md5: 1535ffa739a9362802ac472b2300a7a5
-      size: 428
+      md5: 1ccf822f35ccca98e3dc18a60a78ae5e
+      size: 297
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: f3795cef677a3fe3bb1013eaaee7c120
-      size: 295421
+      md5: 9eca63cef4908886d99cc6219407d7d3
+      size: 201529
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: d4b557676e3d2917073ab55118c66b6b
-      size: 361018
+      md5: 04a518014c50a78fa037ac5632c07d4f
+      size: 234980
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
       metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: 2e425b3f4b89b1af76d9b9753205a62b
-      size: 845171
+      md5: e5215765ddc547ad8b88bbfbdd92bb39
+      size: 621050
     - path: src/train.py
-      md5: a23bfe1b760cf7d89e066348cb144a9c
-      size: 7904
+      md5: 9974174c21cb2e6ba83af4b55120e6b9
+      size: 8072
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -83,17 +89,17 @@ stages:
         model.use_dropouts: true
     outs:
     - path: images/model.png
-      md5: ef1d310112046d5b451c8d3d820b269d
-      size: 30232
+      md5: 1887dc8f3cf363595aff18c395387ab4
+      size: 52073
     - path: metrics/plots.csv
-      md5: 12388a123ce3a6ff253cef0a750f4f74
-      size: 5552
+      md5: 6c18c89af8e03deb3709ef5e70f0e1e8
+      size: 6054
     - path: metrics/scores.json
-      md5: 7a759a6b73abe79678ff5eb4b5c7e6ec
+      md5: 369eaa1f755e3420bb94e816561e984f
       size: 185
     - path: model/help_model.h5
-      md5: 69b3cd17847791ba33ff379ab45027df
-      size: 9690456
+      md5: 1b9ebe3d270258ea888cab3f63076ade
+      size: 9658360
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
     deps:

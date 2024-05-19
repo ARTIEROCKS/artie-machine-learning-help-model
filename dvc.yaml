@@ -5,6 +5,7 @@ stages:
     - src/download.py
     outs:
     - data/pedagogicalinterventions.json
+    frozen: true
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
@@ -19,6 +20,7 @@ stages:
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions_datarobot.csv
+    frozen: true
   featureselection:
     cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
       data/featureselection.csv data/selectedfeatures.csv
