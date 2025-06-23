@@ -8,8 +8,9 @@ stages:
       size: 2531
     outs:
     - path: data/pedagogicalinterventions.json
-      md5: a8b4904976613ae7047cfffbe018e8a3
-      size: 14121912
+      hash: md5
+      md5: 5a4c2996a98f5f1784e2bf07b7cce799
+      size: 14524598
   transformation:
     cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions.csv
