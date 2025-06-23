@@ -61,3 +61,7 @@ stages:
         cache: false
     plots:
     - metrics/plots.csv
+artifacts:
+  help_model:
+    path: model/help_model.h5
+    type: model
