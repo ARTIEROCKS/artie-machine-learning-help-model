@@ -4,9 +4,13 @@ import math
 import sys
 import yaml
 import tensorflow as tf
+
+
 np.random.seed(0)
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
+from keras import layers
+from keras import models
+#from keras.api.models import Sequential
+#from keras.api.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
 np.random.seed(1)
 
 
@@ -139,30 +143,39 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
                    dropout_value=0.5):
 
-    model = Sequential()
-    model.add(Masking(mask_value=mask_value, input_shape=shape))
+    model = models.Sequential()
+    model.add(layers.Masking(mask_value=mask_value, input_shape=shape))
 
     # If we decide to add a second lstm layer
     if second_lstm_layer:
-        model.add(LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
+        model.add(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
 
     # If we decide to add a dropout layer
     if use_dropout and second_lstm_layer:
-        model.add(Dropout(dropout_value))
+        model.add(layers.Dropout(dropout_value))
 
-    model.add(LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
+    model.add(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
 
     # If we decide to add a dropout layer
     if use_dropout:
-        model.add(Dropout(dropout_value))
+        model.add(layers.Dropout(dropout_value))
 
-    model.add(TimeDistributed(Dense(1, activation='sigmoid')))
+    model.add(layers.TimeDistributed(layers.Dense(1, activation='sigmoid')))
 
     # Because we are in a binary problem, we use the binary cross entropy
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False), optimizer='adam', metrics=["binary_accuracy", tf.keras.metrics.Precision(), tf.keras.metrics.Recall(thresholds=0)])
+    model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False), optimizer=tf.keras.optimizers.Adam(), metrics=["binary_accuracy", tf.keras.metrics.Precision(), tf.keras.metrics.Recall(thresholds=0)])
 
     return model
 
+
+print(tf.__version__)
+
+# list of all physical devices
+print(tf.config.list_physical_devices())
+
+gpus = tf.config.list_physical_devices('GPU')
+#tf.config.set_visible_devices(gpus[0], 'GPU')
+tf.config.set_visible_devices([], 'GPU')
 
 # Loading the parameters
 params_file = sys.argv[1]
