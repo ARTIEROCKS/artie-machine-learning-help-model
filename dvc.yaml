@@ -22,6 +22,7 @@ stages:
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions_datarobot.csv
+    frozen: true
   featureselection:
     cmd: python3 src/featureselection.py params.yaml 
       data/pedagogicalinterventions.csv data/featureselection.csv 
