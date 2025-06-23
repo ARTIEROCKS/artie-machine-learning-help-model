@@ -11,7 +11,8 @@ stages:
       md5: a8b4904976613ae7047cfffbe018e8a3
       size: 14121912
   transformation:
-    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json 
+      data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
       md5: a8b4904976613ae7047cfffbe018e8a3
@@ -24,8 +25,9 @@ stages:
       md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
       size: 1255966
   featureselection:
-    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
-      data/featureselection.csv data/selectedfeatures.csv
+    cmd: python3 src/featureselection.py params.yaml 
+      data/pedagogicalinterventions.csv data/featureselection.csv 
+      data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
       md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
@@ -54,54 +56,64 @@ stages:
         selection.target: request_help
     outs:
     - path: data/featureselection.csv
-      md5: e5215765ddc547ad8b88bbfbdd92bb39
-      size: 621050
+      hash: md5
+      md5: 790a42a009a99d2ce3e5107f822b974f
+      size: 621140
     - path: data/selectedfeatures.csv
       md5: 1ccf822f35ccca98e3dc18a60a78ae5e
       size: 297
     - path: dvc_plots/heatmap_correlation_after.png
-      md5: 9eca63cef4908886d99cc6219407d7d3
-      size: 201529
+      hash: md5
+      md5: 6be5c1cde60f680bdb5133c4a53bee78
+      size: 179960
     - path: dvc_plots/heatmap_correlation_before.png
-      md5: 04a518014c50a78fa037ac5632c07d4f
-      size: 234980
+      hash: md5
+      md5: 50c70a2c6d925c6a43994c24d503e328
+      size: 210553
   train:
-    cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
-      metrics/plots.csv metrics/scores.json
+    cmd: python3 src/train.py params.yaml data/featureselection.csv 
+      model/help_model.h5 metrics/plots.csv metrics/scores.json
     deps:
     - path: data/featureselection.csv
-      md5: e5215765ddc547ad8b88bbfbdd92bb39
-      size: 621050
+      hash: md5
+      md5: 790a42a009a99d2ce3e5107f822b974f
+      size: 621140
     - path: src/train.py
-      md5: 9974174c21cb2e6ba83af4b55120e6b9
-      size: 8072
+      hash: md5
+      md5: 43d86f1c3fcdc252de9fcb3a3edcba31
+      size: 8441
     params:
       params.yaml:
         model.dropout_value: 0.5
         model.lstm_units: 256
         model.mask_value: -1
-        model.percentage_train_size: 75
+        model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
         model.show_summary: true
         model.training_batch_size: 1
         model.training_epochs: 50
-        model.use_dropouts: true
+        model.use_dropouts: false
     outs:
     - path: images/model.png
-      md5: 1887dc8f3cf363595aff18c395387ab4
-      size: 52073
+      hash: md5
+      md5: 52b130aba3013e287ad03f44c6cddf00
+      size: 16329
     - path: metrics/plots.csv
-      md5: 6c18c89af8e03deb3709ef5e70f0e1e8
-      size: 6054
+      hash: md5
+      md5: 11f420153539b29315aa06e6aa6bf6a0
+      size: 6086
     - path: metrics/scores.json
-      md5: 369eaa1f755e3420bb94e816561e984f
+      hash: md5
+      md5: f27010030563a1ff9b80a79da3fd9029
       size: 185
     - path: model/help_model.h5
-      md5: 1b9ebe3d270258ea888cab3f63076ade
-      size: 9658360
+      hash: md5
+      md5: fbb4343e47e532013060184394eea767
+      size: 3339448
   transformationdr:
-    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
+    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
+      data/pedagogicalinterventions_datarobot.csv
     deps:
     - path: data/pedagogicalinterventions.json
       md5: a8b4904976613ae7047cfffbe018e8a3
@@ -111,5 +123,6 @@ stages:
       size: 9877
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
-      md5: c1a64464c8747bff6cf2df7c32a5d5de
-      size: 2031901
+      hash: md5
+      md5: 23481011d7a3a459ee14c9d0f1033967
+      size: 2031898
