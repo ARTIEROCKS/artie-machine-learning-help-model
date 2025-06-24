@@ -67,7 +67,16 @@ def padding_masking(time_series_x, time_series_y, max_time_steps, columns, mask_
 # Function to load the time series and separates it into features and class
 def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, distance_calculation_type):
 
-    # Determina qué columnas eliminar
+    # Filters by students with age less than or equal to 15
+    df = df.dropna(subset=['student_age'])
+    df = df[df['student_age'] <= 15]
+    # Ensure student_age is numeric
+    df = df[pd.to_numeric(df['student_age'], errors='coerce').notna()]
+
+    # Reset index after filtering to ensure proper alignment
+    df = df.reset_index(drop=True)
+
+    # Determines the columns to drop
     apted_columns = ["request_help", "apted_distance", "tree_grade"]
     artie_columns = ["request_help", "solution_distance_family_distance", "solution_distance_element_distance",
                      "solution_distance_position_distance", "solution_distance_input_distance",
@@ -78,10 +87,10 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     else:
         cols_to_drop = [col for col in artie_columns if col in df.columns]
 
-    # Elimina las columnas del DataFrame
+    # Removes the columns that we do not need
     df_X = df.drop(axis=1, columns=cols_to_drop)
 
-    # Actualiza el número de columnas basándose en las columnas actuales en df_X
+    # Updates the columns
     columns = df_X.shape[1]
 
     df_y = df["request_help"]

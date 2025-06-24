@@ -10,7 +10,15 @@ def loadjsondata(filepath):
     for line in open(filepath, 'r'):
         data.append(json.loads(line))
 
-    sortedData = sorted(data, key=lambda x: (x['student']['_id'], x['lastLogin'], x['dateTime']))
+    def safe_sort_key(x):
+        # Valores predeterminados para cuando falten campos
+        student_id = x.get('student', {}).get('_id', '')
+        last_login = x.get('lastLogin', '')
+        date_time = x.get('dateTime', '')
+        return (student_id, last_login, date_time)
+
+    sortedData = sorted(data, key=safe_sort_key)
+
     return sortedData
 
 

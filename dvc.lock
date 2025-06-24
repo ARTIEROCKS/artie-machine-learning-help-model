@@ -16,23 +16,27 @@ stages:
       data/pedagogicalinterventions.csv
     deps:
     - path: data/pedagogicalinterventions.json
-      md5: a8b4904976613ae7047cfffbe018e8a3
-      size: 14121912
+      hash: md5
+      md5: 5a4c2996a98f5f1784e2bf07b7cce799
+      size: 14524598
     - path: src/formatcsv.py
-      md5: 7db8451a20cc607717a86fbda948fbb7
-      size: 9877
+      hash: md5
+      md5: 46a268f3ca1d793655473f63453b8243
+      size: 10098
     outs:
     - path: data/pedagogicalinterventions.csv
-      md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
-      size: 1255966
+      hash: md5
+      md5: ba92715d39a4980a3b3da31991f01a3c
+      size: 1294098
   featureselection:
     cmd: python3 src/featureselection.py params.yaml 
       data/pedagogicalinterventions.csv data/featureselection.csv 
       data/selectedfeatures.csv
     deps:
     - path: data/pedagogicalinterventions.csv
-      md5: 8ca8c7abcdf02a69f9a1ca6b16df6e18
-      size: 1255966
+      hash: md5
+      md5: ba92715d39a4980a3b3da31991f01a3c
+      size: 1294098
     - path: src/featureselection.py
       md5: 75937019d6ecbc4b14aa030f9e09f338
       size: 3427
@@ -58,19 +62,20 @@ stages:
     outs:
     - path: data/featureselection.csv
       hash: md5
-      md5: 790a42a009a99d2ce3e5107f822b974f
-      size: 621140
+      md5: 4c50af9659a322a5a507f4a5576735dd
+      size: 748621
     - path: data/selectedfeatures.csv
-      md5: 1ccf822f35ccca98e3dc18a60a78ae5e
-      size: 297
+      hash: md5
+      md5: b390553fd959cc418d9828487803d65c
+      size: 325
     - path: dvc_plots/heatmap_correlation_after.png
       hash: md5
-      md5: 6be5c1cde60f680bdb5133c4a53bee78
-      size: 179960
+      md5: 6f3f4b208f1569f8908b5ade1de9a35c
+      size: 196524
     - path: dvc_plots/heatmap_correlation_before.png
       hash: md5
-      md5: 50c70a2c6d925c6a43994c24d503e328
-      size: 210553
+      md5: e2fc22c06d8c2a34066ab1d607d467de
+      size: 224705
   train:
     cmd: python3 src/train.py params.yaml data/featureselection.csv 
       model/help_model.h5 metrics/plots.csv metrics/scores.json
