@@ -2,13 +2,20 @@ import pandas as pd
 import numpy as np
 import math
 import sys
+import os
 import yaml
 import tensorflow as tf
 from sklearn.utils.class_weight import compute_class_weight
 
+# Configurar semillas para reproducibilidad
 np.random.seed(0)
-from keras import layers
-from keras import models
+tf.random.set_seed(0)
+
+# Importar módulos de Keras directamente desde TensorFlow
+from tensorflow.keras import layers
+from tensorflow.keras import models
+from tensorflow.keras.models import Model
+
 np.random.seed(1)
 
 
@@ -150,27 +157,44 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
                    dropout_value=0.5):
 
-    model = models.Sequential()
-    model.add(layers.Masking(mask_value=mask_value, input_shape=shape))
+    # Crear el modelo usando la API funcional para manejar mejor las máscaras
+    inputs = tf.keras.Input(shape=shape)
+    # Crear capa de máscara
+    masked = layers.Masking(mask_value=mask_value)(inputs)
 
-    # If we decide to add a second lstm layer
+    # Si queremos agregar una segunda capa LSTM
     if second_lstm_layer:
-        model.add(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
+        x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True)(masked)
+        # Si queremos agregar dropout después de la primera capa LSTM
+        if use_dropout:
+            x = layers.Dropout(dropout_value)(x)
+    else:
+        x = masked
 
-    # If we decide to add a dropout layer
-    if use_dropout and second_lstm_layer:
-        model.add(layers.Dropout(dropout_value))
+    # Agregar la capa LSTM principal (siempre presente)
+    x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences)(x)
 
-    model.add(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))
-
-    # If we decide to add a dropout layer
+    # Si queremos agregar dropout después de la capa LSTM principal
     if use_dropout:
-        model.add(layers.Dropout(dropout_value))
+        x = layers.Dropout(dropout_value)(x)
 
-    model.add(layers.TimeDistributed(layers.Dense(1, activation='sigmoid')))
+    # Capa de salida - en lugar de TimeDistributed, usamos una capa Dense con la forma adecuada
+    if return_sequences:
+        outputs = layers.Dense(1, activation='sigmoid')(x)
+    else:
+        outputs = layers.Dense(1, activation='sigmoid')(x)
 
-    # Because we are in a binary problem, we use the binary cross entropy
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False), optimizer=tf.keras.optimizers.Adam(), metrics=["binary_accuracy", tf.keras.metrics.Precision(), tf.keras.metrics.Recall(thresholds=0)])
+    # Crear el modelo
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+    # Compilar el modelo con las métricas adecuadas
+    model.compile(
+        loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+        optimizer=tf.keras.optimizers.Adam(),
+        metrics=['binary_accuracy', 
+                tf.keras.metrics.Precision(name='precision'), 
+                tf.keras.metrics.Recall(name='recall')]
+    )
 
     return model
 
@@ -178,16 +202,29 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 def compute_sample_weights_for_time_series(train_y, mask_value, class_weights):
     """
     Compute sample weights for each time step in the time series data
+    Versión optimizada usando operaciones vectorizadas
     """
+    # Inicializar pesos con unos
     sample_weights = np.ones_like(train_y, dtype=float)
 
-    for i in range(train_y.shape[0]):  # For each sample
-        for j in range(train_y.shape[1]):  # For each time step
-            if train_y[i, j, 0] != mask_value:  # If not a masked value
-                class_label = int(train_y[i, j, 0])
-                sample_weights[i, j, 0] = class_weights.get(class_label, 1.0)
-            else:
-                sample_weights[i, j, 0] = 0.0  # Zero weight for masked values
+    # Convertir train_y a un array numpy si no lo es ya
+    if not isinstance(train_y, np.ndarray):
+        train_y = np.array(train_y)
+
+    # Crear máscara para valores enmascarados
+    mask = (train_y == mask_value)
+
+    # Asignar peso 0 a valores enmascarados
+    sample_weights[mask] = 0.0
+
+    # Para cada clase, asignar el peso correspondiente
+    for class_label, weight in class_weights.items():
+        # Asegurarse de que class_label es un valor numérico
+        class_label_value = float(class_label)
+        # Crear máscara para esta clase (los valores que son igual a class_label y no son máscaras)
+        class_mask = (train_y == class_label_value) & ~mask
+        # Asignar peso
+        sample_weights[class_mask] = weight
 
     return sample_weights
 
@@ -206,7 +243,6 @@ metrics_file_name = sys.argv[5]
 use_gpu = False
 if len(sys.argv) > 6:
     use_gpu = sys.argv[6].lower() == 'true'
-use_gpu = sys.argv[6] == 'true'
 
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
@@ -237,12 +273,25 @@ if use_gpu:
     if gpus:
         print(f"Available GPUs: {gpus}")
         try:
-            # Allow memory growth as needed
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
+            # Configuración específica para Metal GPU en Mac
+            # No usamos memory growth para Metal ya que puede causar problemas
             # Enable all available GPUs
             tf.config.set_visible_devices(gpus, 'GPU')
-            print("Metal GPU enabled for training")
+
+            # Configuración óptima para Metal
+            # Limitar el uso de memoria para evitar OOM
+            tf.config.experimental.set_virtual_device_configuration(
+                gpus[0],
+                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)]
+            )
+
+            # Configuración para mejor rendimiento con Metal (si están disponibles)
+            try:
+                tf.config.optimizer.set_jit(False)  # Desactivar XLA que puede causar problemas con Metal
+            except:
+                pass
+
+            print("Metal GPU enabled for training with safe settings")
         except RuntimeError as e:
             print(f"Error configuring GPU: {e}")
             use_gpu = False
@@ -270,6 +319,22 @@ print("Device configuration for training:")
 print("- Visible devices:", tf.config.get_visible_devices())
 print("- Using GPU:", use_gpu)
 
+# Configurer callbacks for better performance and monitoring
+callbacks = [
+    tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, min_lr=0.001),
+    tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+]
+
+# Use run_eagerly=True to avoid graph errors with symbolic tensors
+model.compile(
+    loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+    optimizer=tf.keras.optimizers.Adam(),
+    metrics=['binary_accuracy',
+             tf.keras.metrics.Precision(name='precision'),
+             tf.keras.metrics.Recall(name='recall')],
+    run_eagerly=True  # Esto soluciona muchos problemas de grafos
+)
+
 if training_class_weights:
     # Flatten the 3D array (samples, time_steps, 1) to 1D for class weight computation
     train_y_flat = train_y.reshape(-1)
@@ -286,37 +351,93 @@ if training_class_weights:
     # Compute sample weights for time series data
     sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
 
+    # Ajust batch_size for better performance on GPU
+    optimal_batch_size = 64 if use_gpu else training_batch_size
+
+    print(f"Starting training with batch size: {optimal_batch_size}")
+    print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
     history = model.fit(train_x,
                         train_y,
                         epochs=training_epochs,
-                        batch_size=training_batch_size,
+                        batch_size=optimal_batch_size,
                         validation_data=(test_x, test_y),
-                        verbose=2,
+                        verbose=1,  # 1 = barra de progreso para cada época
                         shuffle=False,
+                        callbacks=callbacks,
                         sample_weight=sample_weights)
 
 else:
+
+    # Adjustar batch_size para mejor rendimiento en GPU
+    optimal_batch_size = 64 if use_gpu else training_batch_size
+
+    print(f"Starting training with batch size: {optimal_batch_size}")
+    print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
     history = model.fit(train_x,
                         train_y,
                         epochs=training_epochs,
-                        batch_size=training_batch_size,
+                        batch_size=optimal_batch_size,
                         validation_data=(test_x, test_y),
-                        verbose=2,
-                        shuffle=False)
+                        verbose=1,  # 1 = barra de progreso para cada época
+                        shuffle=False,
+                        callbacks=callbacks)
 
 # Saving the model
-model.save(output_model_file)
+print("\nTraining completed successfully. Saving model...")
+try:
+    # Intentar guardar en formato moderno .keras
+    keras_path = output_model_file.replace('.h5', '.keras')
+    model.save(keras_path, save_format='keras')
+    print(f"Model saved to {keras_path} in modern format")
+except Exception as e:
+    print(f"Error al guardar en formato moderno: {e}")
+    # Fallback a formato HDF5
+    model.save(output_model_file)
+    print(f"Model saved to {output_model_file} in legacy HDF5 format")
+
+# Check if the history is empty
+if not history.history:
+    print("WARNING: El historial de entrenamiento está vacío. Es posible que el modelo no se haya entrenado correctamente.")
+else:
+    print(f"Modelo entrenado durante {len(history.history['loss'])} épocas.")
+    # Verificar que las métricas existen antes de intentar acceder a ellas
+    if 'precision' in history.history and 'recall' in history.history:
+        print(f"Métricas finales: Precisión: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
+    else:
+        print("Métricas disponibles:", list(history.history.keys()))
+        print(f"Métricas finales: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
 
 #If we want to show the summary
 if show_summary:
+    print("\nModel summary:")
     model.summary()
-    tf.keras.utils.plot_model(model, to_file='images/model.png', dpi=200)
+    try:
+        # Verificar si existe el directorio de imágenes
+        if not os.path.exists('images'):
+            os.makedirs('images')
+        tf.keras.utils.plot_model(model, to_file='images/model.png', dpi=200)
+        print("Model diagram saved to images/model.png")
+    except Exception as e:
+        print(f"Error generating model diagram: {e}")
+        print("This is not critical for model training.")
 
 # Saving the plots and metrics
 # convert the history.history dict to a pandas DataFrame:
 hist_df = pd.DataFrame(history.history)
 
-metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean(), 'precision': hist_df['precision'].mean(), 'recall': hist_df['recall'].mean(),'val_loss': hist_df['val_loss'].mean(), 'val_binary_accuracy': hist_df['val_binary_accuracy'].mean()}
+# Crear diccionario de métricas verificando qué claves están disponibles
+metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
+
+# Agregar métricas opcionales si están disponibles
+if 'precision' in hist_df:
+    metrics_data['precision'] = hist_df['precision'].mean()
+if 'recall' in hist_df:
+    metrics_data['recall'] = hist_df['recall'].mean()
+if 'val_loss' in hist_df:
+    metrics_data['val_loss'] = hist_df['val_loss'].mean()
+if 'val_binary_accuracy' in hist_df:
+    metrics_data['val_binary_accuracy'] = hist_df['val_binary_accuracy'].mean()
+
 metrics_df = pd.DataFrame.from_records([metrics_data])
 
 with open(plots_file_name, mode='w') as f:
