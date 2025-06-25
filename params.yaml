@@ -22,12 +22,13 @@ selection:
 model:
   distance_calculation_type: ARTIE
   mask_value: -1
-  percentage_train_size: 70
+  percentage_train_size: 75
   lstm_units: 256
   return_sequences: true
-  second_lstm_layer: false
-  use_dropouts: false
+  second_lstm_layer: true
+  use_dropouts: true
   dropout_value: 0.5
   training_epochs: 50
   training_batch_size: 1
+  training_class_weights: true
   show_summary: true

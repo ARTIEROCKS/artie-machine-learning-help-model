@@ -82,41 +82,41 @@ stages:
     deps:
     - path: data/featureselection.csv
       hash: md5
-      md5: 790a42a009a99d2ce3e5107f822b974f
-      size: 621140
+      md5: 4c50af9659a322a5a507f4a5576735dd
+      size: 748621
     - path: src/train.py
       hash: md5
-      md5: 43d86f1c3fcdc252de9fcb3a3edcba31
-      size: 8441
+      md5: 2e67d804d13efbc475661a3ff13bfc3c
+      size: 9267
     params:
       params.yaml:
         model.dropout_value: 0.5
         model.lstm_units: 256
         model.mask_value: -1
-        model.percentage_train_size: 70
+        model.percentage_train_size: 75
         model.return_sequences: true
-        model.second_lstm_layer: false
+        model.second_lstm_layer: true
         model.show_summary: true
         model.training_batch_size: 1
         model.training_epochs: 50
-        model.use_dropouts: false
+        model.use_dropouts: true
     outs:
     - path: images/model.png
       hash: md5
-      md5: 52b130aba3013e287ad03f44c6cddf00
-      size: 16329
+      md5: ef1d310112046d5b451c8d3d820b269d
+      size: 30232
     - path: metrics/plots.csv
       hash: md5
-      md5: 11f420153539b29315aa06e6aa6bf6a0
-      size: 6086
+      md5: a9f32eefd1603d0b00a557117dac5cfc
+      size: 6149
     - path: metrics/scores.json
       hash: md5
-      md5: f27010030563a1ff9b80a79da3fd9029
+      md5: da368c948f1a559505b5dc8fd4350c9d
       size: 185
     - path: model/help_model.h5
       hash: md5
-      md5: fbb4343e47e532013060184394eea767
-      size: 3339448
+      md5: 6ae1798cb058e55f21eddbb48a966322
+      size: 9665880
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv

@@ -4,13 +4,11 @@ import math
 import sys
 import yaml
 import tensorflow as tf
-
+from sklearn.utils.class_weight import compute_class_weight
 
 np.random.seed(0)
 from keras import layers
 from keras import models
-#from keras.api.models import Sequential
-#from keras.api.layers import Dense, Dropout, LSTM, Masking, TimeDistributed
 np.random.seed(1)
 
 
@@ -176,15 +174,26 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 
     return model
 
+# Function to compute sample weights for time series data
+def compute_sample_weights_for_time_series(train_y, mask_value, class_weights):
+    """
+    Compute sample weights for each time step in the time series data
+    """
+    sample_weights = np.ones_like(train_y, dtype=float)
+
+    for i in range(train_y.shape[0]):  # For each sample
+        for j in range(train_y.shape[1]):  # For each time step
+            if train_y[i, j, 0] != mask_value:  # If not a masked value
+                class_label = int(train_y[i, j, 0])
+                sample_weights[i, j, 0] = class_weights.get(class_label, 1.0)
+            else:
+                sample_weights[i, j, 0] = 0.0  # Zero weight for masked values
+
+    return sample_weights
+
+
 
 print(tf.__version__)
-
-# list of all physical devices
-print(tf.config.list_physical_devices())
-
-gpus = tf.config.list_physical_devices('GPU')
-#tf.config.set_visible_devices(gpus[0], 'GPU')
-tf.config.set_visible_devices([], 'GPU')
 
 # Loading the parameters
 params_file = sys.argv[1]
@@ -192,6 +201,12 @@ input_csv_file = sys.argv[2]
 output_model_file = sys.argv[3]
 plots_file_name = sys.argv[4]
 metrics_file_name = sys.argv[5]
+
+# Check if GPU should be used based on command line argument
+use_gpu = False
+if len(sys.argv) > 6:
+    use_gpu = sys.argv[6].lower() == 'true'
+use_gpu = sys.argv[6] == 'true'
 
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
@@ -209,8 +224,35 @@ dropout_value = params['model']['dropout_value']
 
 training_epochs = params['model']['training_epochs']
 training_batch_size = params['model']['training_batch_size']
+training_class_weights = params['model']['training_class_weights']
 
 show_summary = params['model']['show_summary']
+
+# list of all physical devices
+print(tf.config.list_physical_devices())
+
+# Configure TensorFlow to use Metal GPU if requested and available
+if use_gpu:
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        print(f"Available GPUs: {gpus}")
+        try:
+            # Allow memory growth as needed
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            # Enable all available GPUs
+            tf.config.set_visible_devices(gpus, 'GPU')
+            print("Metal GPU enabled for training")
+        except RuntimeError as e:
+            print(f"Error configuring GPU: {e}")
+            use_gpu = False
+    else:
+        print("No GPUs found. Using CPU for training.")
+        use_gpu = False
+else:
+    # Disable GPU usage
+    tf.config.set_visible_devices([], 'GPU')
+    print("GPU disabled for training. Using CPU.")
 
 # Loads the data file and gets the maximum time steps and the number of columns
 df, max_time_steps, columns = load(input_csv_file)
@@ -222,7 +264,45 @@ df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, colu
 # Executing the training
 shape = (None, train_x.shape[2])
 model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
-history = model.fit(train_x, train_y, epochs=training_epochs, batch_size=training_batch_size, validation_data=(test_x, test_y), verbose=2, shuffle=False)
+
+# Log device information before training
+print("Device configuration for training:")
+print("- Visible devices:", tf.config.get_visible_devices())
+print("- Using GPU:", use_gpu)
+
+if training_class_weights:
+    # Flatten the 3D array (samples, time_steps, 1) to 1D for class weight computation
+    train_y_flat = train_y.reshape(-1)
+    train_y_flat = train_y_flat[train_y_flat != mask_value]
+
+    # Compute class weights to handle class imbalance
+    classes = np.unique(train_y_flat)
+    weights = compute_class_weight(class_weight='balanced', classes=classes, y=train_y_flat)
+
+    # Create dictionary with class weights
+    class_weights = dict(zip(classes, weights))
+    print("Applied class weights:", class_weights)
+
+    # Compute sample weights for time series data
+    sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
+
+    history = model.fit(train_x,
+                        train_y,
+                        epochs=training_epochs,
+                        batch_size=training_batch_size,
+                        validation_data=(test_x, test_y),
+                        verbose=2,
+                        shuffle=False,
+                        sample_weight=sample_weights)
+
+else:
+    history = model.fit(train_x,
+                        train_y,
+                        epochs=training_epochs,
+                        batch_size=training_batch_size,
+                        validation_data=(test_x, test_y),
+                        verbose=2,
+                        shuffle=False)
 
 # Saving the model
 model.save(output_model_file)
