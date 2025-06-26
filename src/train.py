@@ -6,16 +6,11 @@ import os
 import yaml
 import tensorflow as tf
 from sklearn.utils.class_weight import compute_class_weight
+from tensorflow.keras import layers
 
 # Configurar semillas para reproducibilidad
 np.random.seed(0)
 tf.random.set_seed(0)
-
-# Importar módulos de Keras directamente desde TensorFlow
-from tensorflow.keras import layers
-from tensorflow.keras import models
-from tensorflow.keras.models import Model
-
 np.random.seed(1)
 
 
@@ -187,13 +182,14 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
     # Crear el modelo
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
-    # Compilar el modelo con las métricas adecuadas
+    # Compile the model
     model.compile(
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
         optimizer=tf.keras.optimizers.Adam(),
         metrics=['binary_accuracy', 
                 tf.keras.metrics.Precision(name='precision'), 
-                tf.keras.metrics.Recall(name='recall')]
+                tf.keras.metrics.Recall(name='recall'),
+                tf.keras.metrics.AUC(name='auc', curve='PR')]
     )
 
     return model
@@ -261,6 +257,9 @@ dropout_value = params['model']['dropout_value']
 training_epochs = params['model']['training_epochs']
 training_batch_size = params['model']['training_batch_size']
 training_class_weights = params['model']['training_class_weights']
+training_early_stopping_patience = params['model']['training_early_stopping_patience']
+training_reduce_lr_patience = params['model']['training_reduce_lr_patience']
+training_reduce_lr_factor = params['model']['training_reduce_lr_factor']
 
 show_summary = params['model']['show_summary']
 
@@ -319,11 +318,18 @@ print("Device configuration for training:")
 print("- Visible devices:", tf.config.get_visible_devices())
 print("- Using GPU:", use_gpu)
 
-# Configurer callbacks for better performance and monitoring
-callbacks = [
-    tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, min_lr=0.001),
-    tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
-]
+callbacks = []
+if training_early_stopping_patience > 0:
+    # Configurer callbacks for better performance and monitoring
+    callbacks = [
+        tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                             factor=training_reduce_lr_factor,
+                                             patience=training_early_stopping_patience,
+                                             min_lr=0.001),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                         patience=training_early_stopping_patience,
+                                         restore_best_weights=True)
+    ]
 
 # Use run_eagerly=True to avoid graph errors with symbolic tensors
 model.compile(
@@ -331,7 +337,9 @@ model.compile(
     optimizer=tf.keras.optimizers.Adam(),
     metrics=['binary_accuracy',
              tf.keras.metrics.Precision(name='precision'),
-             tf.keras.metrics.Recall(name='recall')],
+             tf.keras.metrics.Recall(name='recall'),
+             tf.keras.metrics.AUC(name='auc', curve='PR')
+             ],
     run_eagerly=True  # Esto soluciona muchos problemas de grafos
 )
 
@@ -386,26 +394,25 @@ else:
 print("\nTraining completed successfully. Saving model...")
 try:
     # Intentar guardar en formato moderno .keras
-    keras_path = output_model_file.replace('.h5', '.keras')
-    model.save(keras_path, save_format='keras')
-    print(f"Model saved to {keras_path} in modern format")
+    model.save(output_model_file, save_format='keras')
+    print(f"Model saved to {output_model_file} in modern format")
 except Exception as e:
-    print(f"Error al guardar en formato moderno: {e}")
+    print(f"Error saving in modern format: {e}")
     # Fallback a formato HDF5
     model.save(output_model_file)
     print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
 # Check if the history is empty
 if not history.history:
-    print("WARNING: El historial de entrenamiento está vacío. Es posible que el modelo no se haya entrenado correctamente.")
+    print("WARNING: The training history is empty. It's possible the model has not been correctly trained.")
 else:
     print(f"Modelo entrenado durante {len(history.history['loss'])} épocas.")
-    # Verificar que las métricas existen antes de intentar acceder a ellas
+    # Check if precision and recall metrics are available
     if 'precision' in history.history and 'recall' in history.history:
-        print(f"Métricas finales: Precisión: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
+        print(f"Final metrics: Precision: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
     else:
-        print("Métricas disponibles:", list(history.history.keys()))
-        print(f"Métricas finales: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
+        print("Available metrics:", list(history.history.keys()))
+        print(f"Final metrics: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
 
 #If we want to show the summary
 if show_summary:
@@ -425,10 +432,10 @@ if show_summary:
 # convert the history.history dict to a pandas DataFrame:
 hist_df = pd.DataFrame(history.history)
 
-# Crear diccionario de métricas verificando qué claves están disponibles
+# Create a DataFrame for metrics
 metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
 
-# Agregar métricas opcionales si están disponibles
+# Add precision, recall, and validation metrics if they exist
 if 'precision' in hist_df:
     metrics_data['precision'] = hist_df['precision'].mean()
 if 'recall' in hist_df:
