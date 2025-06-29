@@ -7,6 +7,7 @@ import yaml
 import tensorflow as tf
 from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import layers
+from tensorflow.keras.layers import Bidirectional
 
 # Configurar semillas para reproducibilidad
 np.random.seed(0)
@@ -150,7 +151,7 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
 
 # Function to generate the model
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
-                   dropout_value=0.5):
+                   dropout_value=0.5, use_bidirectional=True):
 
     # Crear el modelo usando la API funcional para manejar mejor las máscaras
     inputs = tf.keras.Input(shape=shape)
@@ -159,7 +160,10 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 
     # Si queremos agregar una segunda capa LSTM
     if second_lstm_layer:
-        x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True)(masked)
+        if use_bidirectional:
+            x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True))(masked)
+        else:
+            x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True)(masked)
         # Si queremos agregar dropout después de la primera capa LSTM
         if use_dropout:
             x = layers.Dropout(dropout_value)(x)
@@ -167,7 +171,10 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
         x = masked
 
     # Agregar la capa LSTM principal (siempre presente)
-    x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences)(x)
+    if use_bidirectional:
+        x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))(x)
+    else:
+        x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences)(x)
 
     # Si queremos agregar dropout después de la capa LSTM principal
     if use_dropout:
@@ -185,7 +192,7 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
     # Compile the model
     model.compile(
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-        optimizer=tf.keras.optimizers.Adam(),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),  # Valor predeterminado, se sobrescribirá después
         metrics=['binary_accuracy', 
                 tf.keras.metrics.Precision(name='precision'), 
                 tf.keras.metrics.Recall(name='recall'),
@@ -243,25 +250,27 @@ if len(sys.argv) > 6:
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
 
-distance_calculation_type = params['model']['distance_calculation_type'] # ARTIE or APTED
+distance_calculation_type = params['model'].get('distance_calculation_type','artie') # ARTIE or APTED
 
-mask_value = params['model']['mask_value']
-percentage_train_size = params['model']['percentage_train_size']
+mask_value = params['model'].get('mask_value', -1)  # Por defecto -1 para enmascarar valores
+percentage_train_size = params['model'].get('percentage_train_size', 70)  # Por defecto 80% para entrenamiento
+initial_learning_rate = params['model'].get('initial_learning_rate', 0.1)  # Por defecto 0.1
 
-lstm_units = params['model']['lstm_units']
-return_sequences = params['model']['return_sequences']
-second_lstm_layer = params['model']['second_lstm_layer']
-use_dropouts = params['model']['use_dropouts']
-dropout_value = params['model']['dropout_value']
+lstm_units = params['model'].get('lstm_units',256)  # Por defecto 256 unidades LSTM
+return_sequences = params['model'].get('return_sequences',True)  # Por defecto activado
+second_lstm_layer = params['model'].get('second_lstm_layer', True)  # Por defecto activado
+use_dropouts = params['model'].get('use_dropouts', True)  # Por defecto activado
+dropout_value = params['model'].get('dropout_value', 0.5)
+use_bidirectional = params['model'].get('use_bidirectional', True)  # Por defecto activado
 
-training_epochs = params['model']['training_epochs']
-training_batch_size = params['model']['training_batch_size']
-training_class_weights = params['model']['training_class_weights']
-training_early_stopping_patience = params['model']['training_early_stopping_patience']
-training_reduce_lr_patience = params['model']['training_reduce_lr_patience']
-training_reduce_lr_factor = params['model']['training_reduce_lr_factor']
+training_epochs = params['model'].get('training_epochs', 100)  # Por defecto 100 épocas
+training_batch_size = params['model'].get('training_batch_size', 32)  # Por defecto 32 batch size
+training_class_weights = params['model'].get('training_class_weights', True)  # Por defecto True, usar pesos de clase
+training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)  # Por defecto 10 épocas de paciencia
+training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # Por defecto 5 épocas de paciencia para reducir LR
+training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # Por defecto reducir LR por un factor de 0.1
 
-show_summary = params['model']['show_summary']
+show_summary = params['model'].get('show_summary', True)  # Por defecto mostrar el resumen del modelo
 
 # list of all physical devices
 print(tf.config.list_physical_devices())
@@ -311,21 +320,41 @@ df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, colu
 
 # Executing the training
 shape = (None, train_x.shape[2])
-model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value)
+model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value, use_bidirectional)
 
 # Log device information before training
 print("Device configuration for training:")
 print("- Visible devices:", tf.config.get_visible_devices())
 print("- Using GPU:", use_gpu)
 
+# Callback personalizado para imprimir el learning rate en cada época
+class LearningRateLogger(tf.keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        # Acceder al learning rate de manera compatible con versiones actuales de TF
+        try:
+            # Método moderno: usar get_config()
+            lr = self.model.optimizer.get_config()['learning_rate']
+            if hasattr(lr, 'numpy'):
+                lr = lr.numpy()
+        except (AttributeError, KeyError):
+            # Método alternativo: intentar con _decayed_lr
+            try:
+                lr = self.model.optimizer._decayed_lr(tf.float32).numpy()
+            except (AttributeError, ValueError):
+                # Último recurso: usar un valor fijo
+                lr = "No disponible"
+        print(f"\nLearning rate en época {epoch+1}: {lr}")
+
 callbacks = []
 if training_early_stopping_patience > 0:
     # Configurer callbacks for better performance and monitoring
     callbacks = [
+        LearningRateLogger(),
         tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss',
                                              factor=training_reduce_lr_factor,
-                                             patience=training_early_stopping_patience,
-                                             min_lr=0.001),
+                                             patience=training_reduce_lr_patience,
+                                             min_lr=0.001,
+                                             verbose=1),  # Verbose para mostrar los cambios en LR
         tf.keras.callbacks.EarlyStopping(monitor='val_loss',
                                          patience=training_early_stopping_patience,
                                          restore_best_weights=True)
@@ -334,7 +363,7 @@ if training_early_stopping_patience > 0:
 # Use run_eagerly=True to avoid graph errors with symbolic tensors
 model.compile(
     loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-    optimizer=tf.keras.optimizers.Adam(),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=initial_learning_rate),
     metrics=['binary_accuracy',
              tf.keras.metrics.Precision(name='precision'),
              tf.keras.metrics.Recall(name='recall'),
