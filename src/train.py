@@ -353,10 +353,11 @@ if training_early_stopping_patience > 0:
         tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss',
                                              factor=training_reduce_lr_factor,
                                              patience=training_reduce_lr_patience,
-                                             min_lr=0.001,
+                                             min_lr=0.0001,
                                              verbose=1),  # Verbose para mostrar los cambios en LR
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+        tf.keras.callbacks.EarlyStopping(monitor='val_recall',
                                          patience=training_early_stopping_patience,
+                                         mode='max',
                                          restore_best_weights=True)
     ]
 
