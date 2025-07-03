@@ -23,6 +23,17 @@ stages:
     outs:
     - data/pedagogicalinterventions_datarobot.csv
     frozen: true
+  dataanalysis:
+    cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv
+      dvc_plots/class_distribution.png data/class_distribution_summary.csv
+    deps:
+      - data/pedagogicalinterventions.csv
+      - src/data_analysis.py
+    outs:
+      - dvc_plots/shap_feature_importance_bar.png
+      - dvc_plots/shap_feature_importance_beeswarm.png
+      - dvc_plots/shap_feature_importance_waterfall.png
+      - data/shap_feature_importance.csv
   featureselection:
     cmd: python3 src/featureselection.py params.yaml 
       data/pedagogicalinterventions.csv data/featureselection.csv 
@@ -57,6 +68,12 @@ stages:
     - model.training_batch_size
     - model.training_epochs
     - model.use_dropouts
+    - model.use_bidirectional
+    - model.initial_learning_rate
+    - model.training_class_weights
+    - model.training_early_stopping_patience
+    - model.training_reduce_lr_patience
+    - model.training_reduce_lr_factor
     - model.show_summary
     outs:
     - model/help_model.keras

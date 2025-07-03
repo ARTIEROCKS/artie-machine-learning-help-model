@@ -134,3 +134,33 @@ stages:
       hash: md5
       md5: 968e292a37847f4e2b9f0f3b5edc39ea
       size: 2088547
+  dataanalysis:
+    cmd: python3 src/data_analysis.py params.yaml 
+      data/pedagogicalinterventions.csv dvc_plots/class_distribution.png 
+      data/class_distribution_summary.csv
+    deps:
+    - path: data/pedagogicalinterventions.csv
+      hash: md5
+      md5: ba92715d39a4980a3b3da31991f01a3c
+      size: 1294098
+    - path: src/data_analysis.py
+      hash: md5
+      md5: b8f0166f6a6446313f080e7695de5561
+      size: 7689
+    outs:
+    - path: data/shap_feature_importance.csv
+      hash: md5
+      md5: b29f56688cd80bb44d01f46ec338766e
+      size: 724
+    - path: dvc_plots/shap_feature_importance_bar.png
+      hash: md5
+      md5: d381947d2b7c803cd78eb95d3742bf9e
+      size: 334408
+    - path: dvc_plots/shap_feature_importance_beeswarm.png
+      hash: md5
+      md5: 98d2e63648579f0b39a7966e976fbdc4
+      size: 494461
+    - path: dvc_plots/shap_feature_importance_waterfall.png
+      hash: md5
+      md5: 7c8d8c98f1f4da3f32b8a7917de50a3f
+      size: 380531
