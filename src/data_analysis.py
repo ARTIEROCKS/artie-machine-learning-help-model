@@ -88,7 +88,7 @@ def analyze_feature_importance_shap(df, target_column, drop_columns=None, output
     if drop_columns is None:
         drop_columns = ['group_id', 'date_time', 'student_mother_tongue', 'finished_exercise', 
                        'exercise_is_evaluation', 'student_motivation', 'valid_solution', 
-                       'exercise_valid_solution', 'exercise_level']
+                       'exercise_valid_solution', 'exercise_level', 'grade', 'tree_grade']
 
     # Prepare feature set and target
     columns_to_drop = [col for col in drop_columns if col in df.columns]
