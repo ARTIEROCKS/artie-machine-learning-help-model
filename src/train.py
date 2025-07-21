@@ -9,10 +9,28 @@ from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Bidirectional
 
-# Configurar semillas para reproducibilidad
+# Set seeds for reproducibility
 np.random.seed(0)
 tf.random.set_seed(0)
 np.random.seed(1)
+
+# Custom masking layer for attention mechanism
+class MaskingLambda(layers.Layer):
+    def __init__(self, func, **kwargs):
+        super().__init__(**kwargs)
+        self.func = func
+        self.supports_masking = True
+
+    def call(self, inputs, **kwargs):
+        return self.func(inputs)
+
+    def compute_mask(self, inputs, mask=None):
+        return mask
+
+    def get_config(self):
+        config = super().get_config()
+        # Note: 'func' is not serializable, so we do not include it in config
+        return config
 
 
 # Function to load the csv file
@@ -67,47 +85,34 @@ def padding_masking(time_series_x, time_series_y, max_time_steps, columns, mask_
 
 # Function to load the time series and separates it into features and class
 def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, distance_calculation_type):
-
     # Filters by students with age less than or equal to 15
     df = df.dropna(subset=['student_age'])
     df = df[df['student_age'] <= 15]
     # Ensure student_age is numeric
     df = df[pd.to_numeric(df['student_age'], errors='coerce').notna()]
-
     # Reset index after filtering to ensure proper alignment
     df = df.reset_index(drop=True)
-
     # Determines the columns to drop
     apted_columns = ["request_help", "apted_distance", "tree_grade"]
     artie_columns = ["request_help", "solution_distance_family_distance", "solution_distance_element_distance",
                      "solution_distance_position_distance", "solution_distance_input_distance",
                      "solution_distance_total_distance", "grade"]
-
     if distance_calculation_type.lower() == 'artie':
         cols_to_drop = [col for col in apted_columns if col in df.columns]
     else:
         cols_to_drop = [col for col in artie_columns if col in df.columns]
-
     # Removes the columns that we do not need
     df_X = df.drop(axis=1, columns=cols_to_drop)
-
     # Updates the columns
     columns = df_X.shape[1]
-
     df_y = df["request_help"]
-
     last_step_seconds = -1
-
     time_steps_x = None
     time_steps_y = None
-
     sample_x = None
     sample_y = None
-
     for index, row in df_X.iterrows():
-
         current_seconds = df_X["total_seconds"][index]
-
         # If the time steps of x is none, we create a new np array
         if time_steps_x is None:
             time_steps_x = np.array([row])
@@ -115,37 +120,27 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
         else:
             time_steps_x = np.vstack([time_steps_x, row])
             time_steps_y = np.vstack([time_steps_y, df_y.iloc[[index]]])
-
         # If the last step seconds are greater than the current seconds
         # we add a new sample block
         if last_step_seconds > current_seconds:
-
             # We complete the time series with the maximum and the number of columns
-            time_steps_x, time_steps_y = padding_masking(time_steps_x, time_steps_y, max_time_steps, columns,
-                                                         mask_value)
-
+            time_steps_x, time_steps_y = padding_masking(time_steps_x, time_steps_y, max_time_steps, columns, mask_value)
             if sample_x is None:
                 sample_x = np.array([time_steps_x])
                 sample_y = np.array([time_steps_y])
             else:
                 sample_x = np.vstack([sample_x, [time_steps_x]])
                 sample_y = np.vstack([sample_y, [time_steps_y]])
-
             time_steps_x = None
             time_steps_y = None
-
         # We get the current seconds as the new last step seconds
         last_step_seconds = current_seconds
-
     # We calculate the train size in base of the percentage
     train_size = math.floor(sample_x.shape[0] * percentage_train / 100)
-
     train_x = sample_x[:train_size]
     train_y = sample_y[:train_size]
-
     test_x = sample_x[train_size + 1:]
     test_y = sample_y[train_size + 1:]
-
     return df, train_x, train_y, test_x, test_y
 
 
@@ -180,17 +175,15 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 
     attention_weights = None
     if use_attention:
-        # Simple dot-product attention layer con Lambda para compatibilidad Keras
-        # x: (batch, time_steps, features)
+        # Simple dot-product attention layer with mask support
         attention = layers.Dense(1, activation='tanh', name='attention_score')(x)
-        attention = layers.Lambda(lambda t: tf.squeeze(t, axis=-1))(attention)  # (batch, time_steps)
-        attention = layers.Softmax(axis=1, name='attention_weights')(attention)  # (batch, time_steps)
+        attention = MaskingLambda(lambda t: tf.squeeze(t, axis=-1), name='attention_squeeze')(attention)
+        attention = layers.Softmax(axis=1, name='attention_weights')(attention)
         attention_weights = attention
-        # Aplicar atención multiplicando x por los pesos (expandimos atención)
-        x = layers.Lambda(lambda t: t[0] * tf.expand_dims(t[1], axis=-1))([x, attention])
-        # x sigue siendo (batch, time_steps, features)
+        x = MaskingLambda(lambda t: t[0] * tf.expand_dims(t[1], axis=-1), name='attention_apply')([x, attention])
+        # x remains (batch, time_steps, features)
 
-    # Output layer - Dense(1) aplicado a cada paso temporal
+    # Output layer - Dense(1) applied to each time step
     outputs = layers.Dense(1, activation='sigmoid')(x)  # (batch, time_steps, 1)
 
     # Create the main model
@@ -218,28 +211,28 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
 def compute_sample_weights_for_time_series(train_y, mask_value, class_weights):
     """
     Compute sample weights for each time step in the time series data
-    Versión optimizada usando operaciones vectorizadas
+    Optimized version using vectorized operations
     """
-    # Inicializar pesos con unos
+    # Initialize weights with ones
     sample_weights = np.ones_like(train_y, dtype=float)
 
-    # Convertir train_y a un array numpy si no lo es ya
+    # Convert train_y to a numpy array if not already
     if not isinstance(train_y, np.ndarray):
         train_y = np.array(train_y)
 
-    # Crear máscara para valores enmascarados
+    # Create mask for masked values
     mask = (train_y == mask_value)
 
-    # Asignar peso 0 a valores enmascarados
+    # Assign weight 0 to masked values
     sample_weights[mask] = 0.0
 
-    # Para cada clase, asignar el peso correspondiente
+    # For each class, assign the corresponding weight
     for class_label, weight in class_weights.items():
-        # Asegurarse de que class_label es un valor numérico
+        # Ensure class_label is a numeric value
         class_label_value = float(class_label)
-        # Crear máscara para esta clase (los valores que son igual a class_label y no son máscaras)
+        # Create mask for this class (values equal to class_label and not masked)
         class_mask = (train_y == class_label_value) & ~mask
-        # Asignar peso
+        # Assign weight
         sample_weights[class_mask] = weight
 
     return sample_weights
@@ -265,26 +258,26 @@ with open(params_file, 'r') as fd:
 
 distance_calculation_type = params['model'].get('distance_calculation_type','artie') # ARTIE or APTED
 
-mask_value = params['model'].get('mask_value', -1)  # Por defecto -1 para enmascarar valores
-percentage_train_size = params['model'].get('percentage_train_size', 70)  # Por defecto 80% para entrenamiento
-initial_learning_rate = params['model'].get('initial_learning_rate', 0.1)  # Por defecto 0.1
+mask_value = params['model'].get('mask_value', -1)  # Default -1 to mask values
+percentage_train_size = params['model'].get('percentage_train_size', 70)  # Default 80% for training
+initial_learning_rate = params['model'].get('initial_learning_rate', 0.1)  # Default 0.1
 
-lstm_units = params['model'].get('lstm_units',256)  # Por defecto 256 unidades LSTM
-return_sequences = params['model'].get('return_sequences',True)  # Por defecto activado
-second_lstm_layer = params['model'].get('second_lstm_layer', True)  # Por defecto activado
-use_dropouts = params['model'].get('use_dropouts', True)  # Por defecto activado
+lstm_units = params['model'].get('lstm_units',256)  # Default 256 LSTM units
+return_sequences = params['model'].get('return_sequences',True)  # Default enabled
+second_lstm_layer = params['model'].get('second_lstm_layer', True)  # Default enabled
+use_dropouts = params['model'].get('use_dropouts', True)  # Default enabled
 dropout_value = params['model'].get('dropout_value', 0.5)
-use_bidirectional = params['model'].get('use_bidirectional', True)  # Por defecto activado
-use_attention = params['model'].get('use_attention', False)  # Por defecto no usar atención
+use_bidirectional = params['model'].get('use_bidirectional', True)  # Default enabled
+use_attention = params['model'].get('use_attention', False)  # Default do not use attention
 
-training_epochs = params['model'].get('training_epochs', 100)  # Por defecto 100 épocas
-training_batch_size = params['model'].get('training_batch_size', 32)  # Por defecto 32 batch size
-training_class_weights = params['model'].get('training_class_weights', True)  # Por defecto True, usar pesos de clase
-training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)  # Por defecto 10 épocas de paciencia
-training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # Por defecto 5 épocas de paciencia para reducir LR
-training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # Por defecto reducir LR por un factor de 0.1
+training_epochs = params['model'].get('training_epochs', 100)  # Default 100 epochs
+training_batch_size = params['model'].get('training_batch_size', 32)  # Default 32 batch size
+training_class_weights = params['model'].get('training_class_weights', True)  # Default True, use class weights
+training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)  # Default 10 epochs patience
+training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # Default 5 epochs patience to reduce LR
+training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # Default reduce LR by a factor of 0.1
 
-show_summary = params['model'].get('show_summary', True)  # Por defecto mostrar el resumen del modelo
+show_summary = params['model'].get('show_summary', True)  # Default show model summary
 
 # list of all physical devices
 print(tf.config.list_physical_devices())
@@ -295,21 +288,21 @@ if use_gpu:
     if gpus:
         print(f"Available GPUs: {gpus}")
         try:
-            # Configuración específica para Metal GPU en Mac
-            # No usamos memory growth para Metal ya que puede causar problemas
+            # Specific configuration for Metal GPU on Mac
+            # We do not use memory growth for Metal as it may cause issues
             # Enable all available GPUs
             tf.config.set_visible_devices(gpus, 'GPU')
 
-            # Configuración óptima para Metal
-            # Limitar el uso de memoria para evitar OOM
+            # Optimal configuration for Metal
+            # Limit memory usage to avoid OOM
             tf.config.experimental.set_virtual_device_configuration(
                 gpus[0],
                 [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)]
             )
 
-            # Configuración para mejor rendimiento con Metal (si están disponibles)
+            # Configuration for better performance with Metal (if available)
             try:
-                tf.config.optimizer.set_jit(False)  # Desactivar XLA que puede causar problemas con Metal
+                tf.config.optimizer.set_jit(False)  # Disable XLA which may cause issues with Metal
             except:
                 pass
 
@@ -371,7 +364,7 @@ if training_early_stopping_patience > 0:
                                              factor=training_reduce_lr_factor,
                                              patience=training_reduce_lr_patience,
                                              min_lr=0.0001,
-                                             verbose=1),  # Verbose para mostrar los cambios en LR
+                                             verbose=1),  # Verbose to show LR changes
         tf.keras.callbacks.EarlyStopping(monitor='val_recall',
                                          patience=training_early_stopping_patience,
                                          mode='max',
@@ -387,7 +380,7 @@ model.compile(
              tf.keras.metrics.Recall(name='recall'),
              tf.keras.metrics.AUC(name='auc', curve='PR')
              ],
-    run_eagerly=True  # Esto soluciona muchos problemas de grafos
+    run_eagerly=True  # This solves many graph problems
 )
 
 if training_class_weights:
@@ -406,7 +399,7 @@ if training_class_weights:
     # Compute sample weights for time series data
     sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
 
-    # Ajust batch_size for better performance on GPU
+    # Adjust batch_size for better performance on GPU
     optimal_batch_size = 64 if use_gpu else training_batch_size
 
     print(f"Starting training with batch size: {optimal_batch_size}")
@@ -416,14 +409,13 @@ if training_class_weights:
                         epochs=training_epochs,
                         batch_size=optimal_batch_size,
                         validation_data=(test_x, test_y),
-                        verbose=1,  # 1 = barra de progreso para cada época
+                        verbose=1,  # 1 = progress bar for each epoch
                         shuffle=False,
                         callbacks=callbacks,
                         sample_weight=sample_weights)
 
 else:
-
-    # Adjust batch_size para mejor rendimiento en GPU
+    # Adjust batch_size for better performance on GPU
     optimal_batch_size = 64 if use_gpu else training_batch_size
 
     print(f"Starting training with batch size: {optimal_batch_size}")
@@ -433,19 +425,19 @@ else:
                         epochs=training_epochs,
                         batch_size=optimal_batch_size,
                         validation_data=(test_x, test_y),
-                        verbose=1,  # 1 = barra de progreso para cada época
+                        verbose=1,  # 1 = progress bar for each epoch
                         shuffle=False,
                         callbacks=callbacks)
 
 # Saving the model
 print("\nTraining completed successfully. Saving model...")
 try:
-    # Intentar guardar en formato moderno .keras
+    # Try to save in modern .keras format
     model.save(output_model_file, save_format='keras')
     print(f"Model saved to {output_model_file} in modern format")
 except Exception as e:
     print(f"Error saving in modern format: {e}")
-    # Fallback a formato HDF5
+    # Fallback to HDF5 format
     model.save(output_model_file)
     print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
@@ -467,12 +459,12 @@ else:
         print("Available metrics:", list(history.history.keys()))
         print(f"Final metrics: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
 
-#If we want to show the summary
+# If we want to show the summary
 if show_summary:
     print("\nModel summary:")
     model.summary()
     try:
-        # Verificar si existe el directorio de imágenes
+        # Check if the images directory exists
         if not os.path.exists('images'):
             os.makedirs('images')
         tf.keras.utils.plot_model(model, to_file='images/model.png', dpi=200)
