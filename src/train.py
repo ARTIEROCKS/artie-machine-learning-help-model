@@ -151,50 +151,63 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
 
 # Function to generate the model
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
-                   dropout_value=0.5, use_bidirectional=True):
-
-    # Crear el modelo usando la API funcional para manejar mejor las máscaras
+                   dropout_value=0.5, use_bidirectional=True, use_attention=False):
+    # Create the model using the Functional API for better mask handling
     inputs = tf.keras.Input(shape=shape)
-    # Crear capa de máscara
     masked = layers.Masking(mask_value=mask_value)(inputs)
 
-    # Si queremos agregar una segunda capa LSTM
+    # Add a second LSTM layer if requested
     if second_lstm_layer:
         if use_bidirectional:
             x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True))(masked)
         else:
             x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True)(masked)
-        # Si queremos agregar dropout después de la primera capa LSTM
+        # Add dropout after the first LSTM layer if requested
         if use_dropout:
             x = layers.Dropout(dropout_value)(x)
     else:
         x = masked
 
-    # Agregar la capa LSTM principal (siempre presente)
+    # Add the main LSTM layer (always present)
     if use_bidirectional:
         x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))(x)
     else:
         x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences)(x)
 
-    # Si queremos agregar dropout después de la capa LSTM principal
+    # Add dropout after the main LSTM layer if requested
     if use_dropout:
         x = layers.Dropout(dropout_value)(x)
 
-    # Capa de salida - en lugar de TimeDistributed, usamos una capa Dense con la forma adecuada
-    if return_sequences:
-        outputs = layers.Dense(1, activation='sigmoid')(x)
-    else:
-        outputs = layers.Dense(1, activation='sigmoid')(x)
+    attention_weights = None
+    if use_attention:
+        # Simple dot-product attention layer con Lambda para compatibilidad Keras
+        # x: (batch, time_steps, features)
+        attention = layers.Dense(1, activation='tanh', name='attention_score')(x)
+        attention = layers.Lambda(lambda t: tf.squeeze(t, axis=-1))(attention)  # (batch, time_steps)
+        attention = layers.Softmax(axis=1, name='attention_weights')(attention)  # (batch, time_steps)
+        attention_weights = attention
+        # Aplicar atención multiplicando x por los pesos (expandimos atención)
+        x = layers.Lambda(lambda t: t[0] * tf.expand_dims(t[1], axis=-1))([x, attention])
+        # x sigue siendo (batch, time_steps, features)
 
-    # Crear el modelo
+    # Output layer - Dense(1) aplicado a cada paso temporal
+    outputs = layers.Dense(1, activation='sigmoid')(x)  # (batch, time_steps, 1)
+
+    # Create the main model
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+    # If attention is used, create a submodel for attention weights
+    attention_model = None
+    if use_attention:
+        attention_model = tf.keras.Model(inputs=inputs, outputs=attention_weights, name='attention_submodel')
+        model.attention_model = attention_model  # Attach for later use
 
     # Compile the model
     model.compile(
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),  # Valor predeterminado, se sobrescribirá después
-        metrics=['binary_accuracy', 
-                tf.keras.metrics.Precision(name='precision'), 
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+        metrics=['binary_accuracy',
+                tf.keras.metrics.Precision(name='precision'),
                 tf.keras.metrics.Recall(name='recall'),
                 tf.keras.metrics.AUC(name='auc', curve='PR')]
     )
@@ -262,6 +275,7 @@ second_lstm_layer = params['model'].get('second_lstm_layer', True)  # Por defect
 use_dropouts = params['model'].get('use_dropouts', True)  # Por defecto activado
 dropout_value = params['model'].get('dropout_value', 0.5)
 use_bidirectional = params['model'].get('use_bidirectional', True)  # Por defecto activado
+use_attention = params['model'].get('use_attention', False)  # Por defecto no usar atención
 
 training_epochs = params['model'].get('training_epochs', 100)  # Por defecto 100 épocas
 training_batch_size = params['model'].get('training_batch_size', 32)  # Por defecto 32 batch size
@@ -320,30 +334,33 @@ df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, colu
 
 # Executing the training
 shape = (None, train_x.shape[2])
-model = generate_model(shape, mask_value, lstm_units, return_sequences, second_lstm_layer, use_dropouts, dropout_value, use_bidirectional)
+model = generate_model(
+    shape, mask_value, lstm_units, return_sequences, second_lstm_layer,
+    use_dropouts, dropout_value, use_bidirectional, use_attention
+)
 
 # Log device information before training
 print("Device configuration for training:")
 print("- Visible devices:", tf.config.get_visible_devices())
 print("- Using GPU:", use_gpu)
 
-# Callback personalizado para imprimir el learning rate en cada época
+# Custom callback to print the learning rate at the end of each epoch
 class LearningRateLogger(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
-        # Acceder al learning rate de manera compatible con versiones actuales de TF
+        # Access the learning rate in a way compatible with current TF versions
         try:
-            # Método moderno: usar get_config()
+            # Modern method: use get_config()
             lr = self.model.optimizer.get_config()['learning_rate']
             if hasattr(lr, 'numpy'):
                 lr = lr.numpy()
         except (AttributeError, KeyError):
-            # Método alternativo: intentar con _decayed_lr
+            # Alternative method: try with _decayed_lr
             try:
                 lr = self.model.optimizer._decayed_lr(tf.float32).numpy()
             except (AttributeError, ValueError):
-                # Último recurso: usar un valor fijo
-                lr = "No disponible"
-        print(f"\nLearning rate en época {epoch+1}: {lr}")
+                # Last resort: use a fixed value
+                lr = "Not available"
+        print(f"\nLearning rate at epoch {epoch+1}: {lr}")
 
 callbacks = []
 if training_early_stopping_patience > 0:
@@ -382,7 +399,7 @@ if training_class_weights:
     classes = np.unique(train_y_flat)
     weights = compute_class_weight(class_weight='balanced', classes=classes, y=train_y_flat)
 
-    # Create dictionary with class weights
+    # Create a dictionary with class weights
     class_weights = dict(zip(classes, weights))
     print("Applied class weights:", class_weights)
 
@@ -406,7 +423,7 @@ if training_class_weights:
 
 else:
 
-    # Adjustar batch_size para mejor rendimiento en GPU
+    # Adjust batch_size para mejor rendimiento en GPU
     optimal_batch_size = 64 if use_gpu else training_batch_size
 
     print(f"Starting training with batch size: {optimal_batch_size}")
@@ -432,11 +449,17 @@ except Exception as e:
     model.save(output_model_file)
     print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
+# Save the attention submodel if attention is used
+if use_attention and hasattr(model, 'attention_model'):
+    attention_model_path = output_model_file.replace('.keras', '_attention.keras')
+    model.attention_model.save(attention_model_path)
+    print(f"Attention submodel saved to {attention_model_path}")
+
 # Check if the history is empty
 if not history.history:
     print("WARNING: The training history is empty. It's possible the model has not been correctly trained.")
 else:
-    print(f"Modelo entrenado durante {len(history.history['loss'])} épocas.")
+    print(f"Model trained during {len(history.history['loss'])} epochs.")
     # Check if precision and recall metrics are available
     if 'precision' in history.history and 'recall' in history.history:
         print(f"Final metrics: Precision: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
