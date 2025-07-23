@@ -85,3 +85,14 @@ stages:
         cache: false
     plots:
     - metrics/plots.csv
+
+  test_train:
+    cmd: python src/test_train.py params.yaml model/help_model.keras data/featureselection.csv --output_dir images --use_gpu
+    deps:
+      - src/test_train.py
+      - model/help_model.keras
+      - model/help_model_attention.keras
+      - data/featureselection.csv
+    outs:
+      - metrics/test_predictions.csv
+      - metrics/test_attention.csv
