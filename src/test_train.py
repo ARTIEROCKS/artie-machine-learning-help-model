@@ -297,23 +297,43 @@ def visualize_predictions(X, predictions, results, df, output_dir="visualization
 
             # Show only the top 10 most important features
             if len(feature_names) > 10:
-                top_indices = np.argsort(importance)[-10:]
-                top_features = [feature_names[i] for i in top_indices if i < len(feature_names)]
+                # Asegurarse de que top_indices no contenga índices fuera de rango
+                top_indices = [i for i in np.argsort(importance)[-10:] if i < len(feature_names)]
+                top_features = [feature_names[i] for i in top_indices]
                 top_importance = importance[top_indices]
 
-                # Sort for visualization
-                sorted_indices = np.argsort(top_importance)
-                top_features = [top_features[i] for i in sorted_indices]
-                top_importance = top_importance[sorted_indices]
+                # Comprobar que hay características para mostrar
+                if len(top_features) > 0:
+                    # Sort for visualization
+                    sorted_indices = np.argsort(top_importance)
+                    # Proteger contra índices fuera de rango
+                    sorted_features = []
+                    sorted_importance = []
+                    for idx in sorted_indices:
+                        if idx < len(top_features):
+                            sorted_features.append(top_features[idx])
+                            sorted_importance.append(top_importance[idx])
 
-                plt.barh(top_features, top_importance)
+                    # Verificar que hay datos para graficar
+                    if len(sorted_features) > 0:
+                        plt.barh(sorted_features, sorted_importance)
+                    else:
+                        print(f"  - No hay suficientes características con importancia para la secuencia {i+1}")
+                else:
+                    print(f"  - No hay características con importancia para la secuencia {i+1}")
             else:
                 # Sort for visualization
                 sorted_indices = np.argsort(importance)
-                sorted_features = [feature_names[i] for i in sorted_indices if i < len(feature_names)]
-                sorted_importance = importance[sorted_indices]
+                # Filtrar índices fuera de rango
+                valid_indices = [i for i in sorted_indices if i < len(feature_names)]
+                sorted_features = [feature_names[i] for i in valid_indices]
+                sorted_importance = importance[valid_indices]
 
-                plt.barh(sorted_features, sorted_importance)
+                # Verificar que hay datos para graficar
+                if len(sorted_features) > 0:
+                    plt.barh(sorted_features, sorted_importance)
+                else:
+                    print(f"  - No hay características con importancia para la secuencia {i+1}")
 
             plt.title(f'Feature Importance for Sequence {i+1}')
             plt.xlabel('Relative Importance')
@@ -335,6 +355,7 @@ def main():
     parser.add_argument('--output_dir', default='visualizations', help='Directory to save visualizations')
     parser.add_argument('--use_gpu', action='store_true', help='Enable GPU for inference')
     parser.add_argument('--test-sequences', type=int, default=10, help='Maximum number of sequences to process')
+    parser.add_argument('--no-viz', action='store_true', help='Disable visualization generation')
 
     args = parser.parse_args()
 
@@ -468,8 +489,11 @@ def main():
     # Explain predictions
     results, predictions = analyze_predictions(model, attention_model, X, feature_names, mask_value)
 
-    # Visualize predictions
-    visualize_predictions(X, predictions, results, df, args.output_dir)
+    # Visualize predictions (si no está deshabilitado)
+    if not args.no_viz:
+        visualize_predictions(X, predictions, results, df, args.output_dir)
+    else:
+        print("\nVisualizaciones deshabilitadas por el parámetro --no-viz")
 
     print("\nAnalysis completed successfully.")
     return 0
