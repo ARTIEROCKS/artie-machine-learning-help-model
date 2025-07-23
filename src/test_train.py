@@ -86,9 +86,10 @@ def configure_gpu(use_gpu=False):
     return use_gpu
 
 
-def load_test_data(csv_path, mask_value=-1):
+def load_test_data(csv_path, mask_value=-1, max_sequences=10):
     """
     Load and preprocess test data from a CSV file.
+    Limited to a maximum number of sequences.
     """
     print(f"Loading data from {csv_path}...")
     df = pd.read_csv(csv_path)
@@ -115,6 +116,7 @@ def load_test_data(csv_path, mask_value=-1):
     last_time = -1
     current_sequence = []
     max_length = 0
+    sequence_count = 0
 
     # Group by sequences
     for i, row in enumerate(features.values):
@@ -125,16 +127,21 @@ def load_test_data(csv_path, mask_value=-1):
             sequences.append(np.array(current_sequence))
             max_length = max(max_length, len(current_sequence))
             current_sequence = []
+            sequence_count += 1
+
+            # Limit to max_sequences
+            if sequence_count >= max_sequences:
+                break
 
         current_sequence.append(row)
         last_time = current_time
 
-    # Add the last sequence
-    if current_sequence:
+    # Add the last sequence if we haven't reached the limit
+    if current_sequence and sequence_count < max_sequences:
         sequences.append(np.array(current_sequence))
         max_length = max(max_length, len(current_sequence))
 
-    print(f"Found {len(sequences)} sequences, maximum length: {max_length}")
+    print(f"Found {len(sequences)} sequences (limited to {max_sequences}), maximum length: {max_length}")
 
     # Apply padding to sequences
     padded_sequences = []
@@ -327,6 +334,7 @@ def main():
     parser.add_argument('data_file', help='CSV file with data to evaluate')
     parser.add_argument('--output_dir', default='visualizations', help='Directory to save visualizations')
     parser.add_argument('--use_gpu', action='store_true', help='Enable GPU for inference')
+    parser.add_argument('--test-sequences', type=int, default=10, help='Maximum number of sequences to process')
 
     args = parser.parse_args()
 
@@ -451,8 +459,8 @@ def main():
             print(f"ERROR: Could not load attention model: {e}")
             print("Continuing without attention model...")
 
-    # Load test data
-    X, y_true, df = load_test_data(args.data_file, mask_value)
+    # Load test data (limited to specified number of sequences)
+    X, y_true, df = load_test_data(args.data_file, mask_value, max_sequences=args.test_sequences)
 
     # Get feature names
     feature_names = df.columns.drop(['request_help', 'total_seconds'], errors='ignore').tolist()
