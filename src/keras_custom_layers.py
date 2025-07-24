@@ -62,17 +62,17 @@ class AttentionLayer(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         # Create trainable weights for attention mechanism
-        self.W = self.add_weight(name="attention_weight", 
+        self.W = self.add_weight(name="attention_weight",
                                  shape=(input_shape[-1], 128),
-                                 initializer="glorot_uniform", 
+                                 initializer="glorot_uniform",
                                  trainable=True)
-        self.b = self.add_weight(name="attention_bias", 
+        self.b = self.add_weight(name="attention_bias",
                                  shape=(128,),
-                                 initializer="zeros", 
+                                 initializer="zeros",
                                  trainable=True)
-        self.u = self.add_weight(name="context_vector", 
+        self.u = self.add_weight(name="context_vector",
                                  shape=(128, 1),
-                                 initializer="glorot_uniform", 
+                                 initializer="glorot_uniform",
                                  trainable=True)
         super(AttentionLayer, self).build(input_shape)
 
