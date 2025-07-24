@@ -489,6 +489,57 @@ def main():
     # Explain predictions
     results, predictions = analyze_predictions(model, attention_model, X, feature_names, mask_value)
 
+    # Save predictions to CSV for DVC
+    print("\nSaving predictions to CSV files...")
+
+    # Create metrics directory if it doesn't exist
+    os.makedirs('metrics', exist_ok=True)
+
+    # Save predictions
+    predictions_data = []
+    for i, pred_seq in enumerate(predictions):
+        for j, pred in enumerate(pred_seq.flatten()):
+            predictions_data.append({
+                'sequence_id': i + 1,
+                'time_step': j + 1,
+                'prediction': pred
+            })
+
+    predictions_df = pd.DataFrame(predictions_data)
+    predictions_df.to_csv('metrics/test_predictions.csv', index=False)
+    print("Predictions saved to metrics/test_predictions.csv")
+
+    # Save attention weights if available
+    if attention_model is not None:
+        print("Extracting attention weights...")
+        attention_data = []
+        for i in range(len(X)):
+            try:
+                attention_weights = attention_model.predict(X[i:i+1], verbose=0)[0]
+                for j, weight in enumerate(attention_weights.flatten()):
+                    attention_data.append({
+                        'sequence_id': i + 1,
+                        'time_step': j + 1,
+                        'attention_weight': weight
+                    })
+            except Exception as e:
+                print(f"Error getting attention weights for sequence {i+1}: {e}")
+
+        if attention_data:
+            attention_df = pd.DataFrame(attention_data)
+            attention_df.to_csv('metrics/test_attention.csv', index=False)
+            print("Attention weights saved to metrics/test_attention.csv")
+        else:
+            # Create empty attention file if there was an error
+            empty_attention_df = pd.DataFrame(columns=['sequence_id', 'time_step', 'attention_weight'])
+            empty_attention_df.to_csv('metrics/test_attention.csv', index=False)
+            print("Empty attention file created due to errors")
+    else:
+        # Create empty attention file if no attention model
+        empty_attention_df = pd.DataFrame(columns=['sequence_id', 'time_step', 'attention_weight'])
+        empty_attention_df.to_csv('metrics/test_attention.csv', index=False)
+        print("Empty attention file created (no attention model available)")
+
     # Visualize predictions (si no está deshabilitado)
     if not args.no_viz:
         visualize_predictions(X, predictions, results, df, args.output_dir)
