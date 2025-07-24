@@ -9,7 +9,7 @@ import yaml
 import sys
 
 # Import custom layers to ensure they're available when loading the model
-from src.keras_custom_layers import MaskedRepeatVector, AttentionLayer
+from keras_custom_layers import MaskedRepeatVector, AttentionLayer
 
 # Register custom functions
 @tf.keras.utils.register_keras_serializable(package="Custom", name="compute_mask_func")

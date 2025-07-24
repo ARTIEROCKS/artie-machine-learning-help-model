@@ -53,8 +53,9 @@ stages:
     - dvc_plots/heatmap_correlation_after.png
     - dvc_plots/heatmap_correlation_before.png
   train:
-    cmd: python3 src/train.py params.yaml data/featureselection.csv 
-      model/help_model.keras metrics/plots.csv metrics/scores.json true
+    cmd: python3 src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv 
+      --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv 
+      --metrics-file-name metrics/scores.json --use-gpu --output-dir images
     deps:
     - data/featureselection.csv
     - src/train.py
