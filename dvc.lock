@@ -77,8 +77,10 @@ stages:
       md5: e2fc22c06d8c2a34066ab1d607d467de
       size: 224705
   train:
-    cmd: python3 src/train.py params.yaml data/featureselection.csv 
-      model/help_model.keras metrics/plots.csv metrics/scores.json true
+    cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
+      data/featureselection.csv --output-model-file model/help_model.keras 
+      --plots-file-name metrics/plots.csv --metrics-file-name 
+      metrics/scores.json --use-gpu --output-dir images
     deps:
     - path: data/featureselection.csv
       hash: md5
@@ -86,37 +88,48 @@ stages:
       size: 748621
     - path: src/train.py
       hash: md5
-      md5: 99360b0d985dc47b3a4c1b68987f6e69
-      size: 17124
+      md5: c6e780bc1157843ee42ebe64d86e947b
+      size: 22450
     params:
       params.yaml:
         model.dropout_value: 0.5
+        model.initial_learning_rate: 0.1
         model.lstm_units: 256
         model.mask_value: -1
-        model.percentage_train_size: 75
+        model.percentage_train_size: 70
         model.return_sequences: true
         model.second_lstm_layer: true
         model.show_summary: true
-        model.training_batch_size: 1
-        model.training_epochs: 50
-        model.use_dropouts: true
+        model.training_batch_size: 32
+        model.training_class_weights: true
+        model.training_early_stopping_patience: 100
+        model.training_epochs: 500
+        model.training_reduce_lr_factor: 0.3
+        model.training_reduce_lr_patience: 30
+        model.use_attention: true
+        model.use_bidirectional: false
+        model.use_dropouts: false
     outs:
     - path: images/model.png
       hash: md5
-      md5: bc7beaf1015b9346c4f1eefaaf1c99c0
-      size: 43876
+      md5: c1738d83e1e4f7dcabfab44d80b1940b
+      size: 62671
     - path: metrics/plots.csv
       hash: md5
-      md5: 6ee1f41e4291b006d7cc4d203acb3d22
-      size: 6793
+      md5: 269c84cbe16ec4207fdd5ea57517a55a
+      size: 65220
     - path: metrics/scores.json
       hash: md5
-      md5: 39d79a2a67487bbca5188f036f0dd56b
-      size: 194
+      md5: 054d9b1a8a5780fbacb1572e285f4d09
+      size: 248
     - path: model/help_model.keras
       hash: md5
-      md5: b71b1ce95a0e557c395f5e9869a8fd82
-      size: 9668151
+      md5: b1c7127803bb35004074e34c47174177
+      size: 9687013
+    - path: model/help_model_attention.keras
+      hash: md5
+      md5: 14b4e4a364ad372ff0fb0fd3d3c0d2ec
+      size: 3248121
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
@@ -127,8 +140,8 @@ stages:
       size: 14524598
     - path: src/formatcsv.py
       hash: md5
-      md5: 26b41354c748be4b3c58a13a674be4a0
-      size: 9865
+      md5: 46a268f3ca1d793655473f63453b8243
+      size: 10098
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
       hash: md5
@@ -145,22 +158,52 @@ stages:
       size: 1294098
     - path: src/data_analysis.py
       hash: md5
-      md5: b8f0166f6a6446313f080e7695de5561
-      size: 7689
+      md5: 3d70c6b1d4cba55989ee3285ac5270a8
+      size: 7712
     outs:
     - path: data/shap_feature_importance.csv
       hash: md5
-      md5: b29f56688cd80bb44d01f46ec338766e
-      size: 724
+      md5: 479c8ff497e4be984f3fc3db33ee3478
+      size: 675
     - path: dvc_plots/shap_feature_importance_bar.png
       hash: md5
-      md5: d381947d2b7c803cd78eb95d3742bf9e
-      size: 334408
+      md5: bdd3293bac9d5332ef65a020cb3657ac
+      size: 312853
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 98d2e63648579f0b39a7966e976fbdc4
-      size: 494461
+      md5: 22b2c347f42f740af43aff76e4ddf338
+      size: 467657
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
-      md5: 7c8d8c98f1f4da3f32b8a7917de50a3f
-      size: 380531
+      md5: f487ad66493cfbafffd554ce850ff1f6
+      size: 356716
+  test_train:
+    cmd: python src/test_train.py params.yaml model/help_model.keras 
+      data/featureselection.csv --output_dir images --use_gpu --test-sequences 
+      10 --no-viz
+    deps:
+    - path: data/featureselection.csv
+      hash: md5
+      md5: 4c50af9659a322a5a507f4a5576735dd
+      size: 748621
+    - path: model/help_model.keras
+      hash: md5
+      md5: b1c7127803bb35004074e34c47174177
+      size: 9687013
+    - path: model/help_model_attention.keras
+      hash: md5
+      md5: 14b4e4a364ad372ff0fb0fd3d3c0d2ec
+      size: 3248121
+    - path: src/test_train.py
+      hash: md5
+      md5: 8a262ea78b14f980b7c1868f150c4274
+      size: 22493
+    outs:
+    - path: metrics/test_attention.csv
+      hash: md5
+      md5: ff7ce630c152d623fcf273b49b5ae1c4
+      size: 7547
+    - path: metrics/test_predictions.csv
+      hash: md5
+      md5: f9f914bdc5bfa88a9c6a28371487047b
+      size: 8897
