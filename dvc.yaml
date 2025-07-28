@@ -88,7 +88,7 @@ stages:
     - metrics/plots.csv
 
   test_train:
-    cmd: python src/test_train.py params.yaml model/help_model.keras data/featureselection.csv --output_dir images --use_gpu --test-sequences 10 --no-viz
+    cmd: python3 src/test_train.py params.yaml model/help_model.keras data/featureselection.csv --output_dir images --use_gpu --test-sequences 15 --no-viz
     deps:
       - src/test_train.py
       - model/help_model.keras

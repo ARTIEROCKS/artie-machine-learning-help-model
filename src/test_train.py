@@ -9,33 +9,14 @@ import yaml
 import sys
 
 # Import custom layers to ensure they're available when loading the model
-from keras_custom_layers import MaskedRepeatVector, AttentionLayer
-
-# Register custom functions
-@tf.keras.utils.register_keras_serializable(package="Custom", name="compute_mask_func")
-def compute_mask_func(inp, mask_value=-1):
-    return tf.cast(tf.reduce_any(inp != mask_value, axis=-1), tf.float32)
-
-@tf.keras.utils.register_keras_serializable(package="Custom", name="squeeze_last_axis_func")
-def squeeze_last_axis_func(t):
-    return tf.squeeze(t, axis=-1)
-
-@tf.keras.utils.register_keras_serializable(package="Custom", name="mask_attention_scores_func")
-def mask_attention_scores_func(inputs):
-    scores, mask = inputs
-    minus_inf = -1e9
-    return scores + (1.0 - mask) * minus_inf
-
-@tf.keras.utils.register_keras_serializable(package="Custom", name="apply_attention_func")
-def apply_attention_func(inputs):
-    x, attn = inputs
-    return x * tf.expand_dims(attn, axis=-1)
-
-# Function that returns the function to be compatible with the saved model
-@tf.keras.utils.register_keras_serializable(package="Custom")
-def compute_mask_layer(mask_value):
-    return lambda inp: compute_mask_func(inp, mask_value)
-
+from keras_custom_layers import (
+    MaskedRepeatVector,
+    AttentionLayer,
+    compute_mask_layer,
+    squeeze_last_axis_func,
+    mask_attention_scores_func,
+    apply_attention_func
+)
 
 def configure_gpu(use_gpu=False):
     """Configure GPU usage for TensorFlow"""
@@ -388,14 +369,11 @@ def main():
         # Specify custom objects when loading the model
         custom_objects = {
             'compute_mask_layer': compute_mask_layer,
-            'compute_mask_func': compute_mask_func,
             'squeeze_last_axis_func': squeeze_last_axis_func,
             'mask_attention_scores_func': mask_attention_scores_func,
             'apply_attention_func': apply_attention_func,
             'MaskedRepeatVector': MaskedRepeatVector,
-            'AttentionLayer': AttentionLayer,
-            # Add explicit reference to internal 'func' functions that may be used by the model
-            'func': compute_mask_func
+            'AttentionLayer': AttentionLayer
         }
 
         # Try to load with experimental skip_deserialization option

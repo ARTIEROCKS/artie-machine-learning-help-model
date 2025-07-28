@@ -8,11 +8,20 @@ import sys
 import os
 import yaml
 import tensorflow as tf
-import argparse
 from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Bidirectional
-from keras_custom_layers import compute_mask_layer, squeeze_last_axis_func, mask_attention_scores_func, apply_attention_func
+import argparse
+
+# Import custom functions from keras_custom_layers to ensure consistency
+from keras_custom_layers import (
+    compute_mask_layer,
+    squeeze_last_axis_func,
+    mask_attention_scores_func,
+    apply_attention_func,
+    MaskedRepeatVector,
+    AttentionLayer
+)
 
 # Set seeds for reproducibility
 np.random.seed(0)
@@ -230,28 +239,25 @@ def compute_sample_weights_for_time_series(train_y, mask_value, class_weights):
 if __name__ == "__main__":
     print(tf.__version__)
 
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Train LSTM model for help request prediction')
-    parser.add_argument('--params-file', required=True, help='YAML file with model parameters')
-    parser.add_argument('--input-csv-file', required=True, help='CSV file with training data')
-    parser.add_argument('--output-model-file', required=True, help='Path to save the trained model')
-    parser.add_argument('--plots-file-name', required=True, help='Path to save training plots CSV')
-    parser.add_argument('--metrics-file-name', required=True, help='Path to save metrics JSON')
-    parser.add_argument('--use-gpu', action='store_true', help='Enable GPU for training')
-    parser.add_argument('--output-dir', default='images', help='Directory to save model diagrams')
-
+    parser = argparse.ArgumentParser(description="Train HelpModel with configurable arguments")
+    parser.add_argument('--params-file', required=True, help='Path to params.yaml')
+    parser.add_argument('--input-csv-file', required=True, help='Input CSV file')
+    parser.add_argument('--output-model-file', required=True, help='Output model file (.keras)')
+    parser.add_argument('--plots-file-name', required=True, help='CSV file for training plots')
+    parser.add_argument('--metrics-file-name', required=True, help='JSON file for metrics')
+    parser.add_argument('--use-gpu', action='store_true', help='Enable GPU usage')
+    parser.add_argument('--output-dir', default='images', help='Directory for output images')
     args = parser.parse_args()
 
-    # Check file existence
-    if not os.path.exists(args.params_file):
-        print(f"ERROR: Parameters file '{args.params_file}' not found.")
-        sys.exit(1)
+    params_file = args.params_file
+    input_csv_file = args.input_csv_file
+    output_model_file = args.output_model_file
+    plots_file_name = args.plots_file_name
+    metrics_file_name = args.metrics_file_name
+    use_gpu = args.use_gpu
+    output_dir = args.output_dir
 
-    if not os.path.exists(args.input_csv_file):
-        print(f"ERROR: Input CSV file '{args.input_csv_file}' not found.")
-        sys.exit(1)
-
-    with open(args.params_file, 'r') as fd:
+    with open(params_file, 'r') as fd:
         params = yaml.safe_load(fd)
 
     distance_calculation_type = params['model'].get('distance_calculation_type','artie') # ARTIE or APTED
@@ -281,7 +287,7 @@ if __name__ == "__main__":
     print(tf.config.list_physical_devices())
 
     # Configure TensorFlow to use Metal GPU if requested and available
-    if args.use_gpu:
+    if use_gpu:
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:
             print(f"Available GPUs: {gpus}")
@@ -307,17 +313,17 @@ if __name__ == "__main__":
                 print("Metal GPU enabled for training with safe settings")
             except RuntimeError as e:
                 print(f"Error configuring GPU: {e}")
-                args.use_gpu = False
+                use_gpu = False
         else:
             print("No GPUs found. Using CPU for training.")
-            args.use_gpu = False
+            use_gpu = False
     else:
         # Disable GPU usage
         tf.config.set_visible_devices([], 'GPU')
         print("GPU disabled for training. Using CPU.")
 
     # Loads the data file and gets the maximum time steps and the number of columns
-    df, max_time_steps, columns = load(args.input_csv_file)
+    df, max_time_steps, columns = load(input_csv_file)
 
     # Loading the training and tests sets and fill the data with the mask value until the max time steps has been reached
     df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, columns, mask_value, percentage_train_size,
@@ -333,7 +339,7 @@ if __name__ == "__main__":
     # Log device information before training
     print("Device configuration for training:")
     print("- Visible devices:", tf.config.get_visible_devices())
-    print("- Using GPU:", args.use_gpu)
+    print("- Using GPU:", use_gpu)
 
     # Custom callback to print the learning rate at the end of each epoch
     class LearningRateLogger(tf.keras.callbacks.Callback):
@@ -398,7 +404,7 @@ if __name__ == "__main__":
         sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
 
         # Adjust batch_size for better performance on GPU
-        optimal_batch_size = 64 if args.use_gpu else training_batch_size
+        optimal_batch_size = 64 if use_gpu else training_batch_size
 
         print(f"Starting training with batch size: {optimal_batch_size}")
         print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
@@ -414,7 +420,7 @@ if __name__ == "__main__":
 
     else:
         # Adjust batch_size for better performance on GPU
-        optimal_batch_size = 64 if args.use_gpu else training_batch_size
+        optimal_batch_size = 64 if use_gpu else training_batch_size
 
         print(f"Starting training with batch size: {optimal_batch_size}")
         print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
@@ -431,17 +437,17 @@ if __name__ == "__main__":
     print("\nTraining completed successfully. Saving model...")
     try:
         # Try to save in modern .keras format
-        model.save(args.output_model_file, save_format='keras')
-        print(f"Model saved to {args.output_model_file} in modern format")
+        model.save(output_model_file, save_format='keras')
+        print(f"Model saved to {output_model_file} in modern format")
     except Exception as e:
         print(f"Error saving in modern format: {e}")
         # Fallback to HDF5 format
-        model.save(args.output_model_file)
-        print(f"Model saved to {args.output_model_file} in legacy HDF5 format")
+        model.save(output_model_file)
+        print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
     # Save the attention submodel if attention is used
     if use_attention and hasattr(model, 'attention_model'):
-        attention_model_path = args.output_model_file.replace('.keras', '_attention.keras')
+        attention_model_path = output_model_file.replace('.keras', '_attention.keras')
         model.attention_model.save(attention_model_path)
         print(f"Attention submodel saved to {attention_model_path}")
 
@@ -462,11 +468,9 @@ if __name__ == "__main__":
         print("\nModel summary:")
         model.summary()
         try:
-            # Check if the images directory exists
-            if not os.path.exists(args.output_dir):
-                os.makedirs(args.output_dir)
-            tf.keras.utils.plot_model(model, to_file=f'{args.output_dir}/model.png', dpi=200)
-            print(f"Model diagram saved to {args.output_dir}/model.png")
+            # Save model diagram to output_dir
+            tf.keras.utils.plot_model(model, to_file=os.path.join(output_dir, 'model.png'), dpi=200)
+            print(f"Model diagram saved to {os.path.join(output_dir, 'model.png')}")
         except Exception as e:
             print(f"Error generating model diagram: {e}")
             print("This is not critical for model training.")
@@ -494,8 +498,8 @@ if __name__ == "__main__":
 
     metrics_df = pd.DataFrame.from_records([metrics_data])
 
-    with open(args.plots_file_name, mode='w') as f:
+    with open(plots_file_name, mode='w') as f:
         hist_df.to_csv(f, index_label='epoch')
 
-    with open(args.metrics_file_name, mode='w') as f:
+    with open(metrics_file_name, mode='w') as f:
         metrics_df.to_json(f)
