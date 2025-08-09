@@ -257,6 +257,11 @@ if __name__ == "__main__":
     use_gpu = args.use_gpu
     output_dir = args.output_dir
 
+    # Check if GPU should be used based on command line argument
+    use_gpu = False
+    if len(sys.argv) > 6:
+        use_gpu = sys.argv[6].lower() == 'true'
+
     with open(params_file, 'r') as fd:
         params = yaml.safe_load(fd)
 
