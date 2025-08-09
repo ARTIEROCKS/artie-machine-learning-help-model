@@ -115,3 +115,24 @@ class AttentionLayer(tf.keras.layers.Layer):
         # For serialization
         config = super(AttentionLayer, self).get_config()
         return config
+@tf.keras.utils.register_keras_serializable()
+def compute_mask_layer(mask_value):
+    def func(inp):
+        return tf.cast(tf.reduce_any(inp != mask_value, axis=-1), tf.float32)
+    return func
+
+@tf.keras.utils.register_keras_serializable()
+def squeeze_last_axis_func(t):
+    return tf.squeeze(t, axis=-1)
+
+@tf.keras.utils.register_keras_serializable()
+def mask_attention_scores_func(inputs):
+    scores, mask = inputs
+    minus_inf = -1e9
+    return scores + (1.0 - mask) * minus_inf
+
+@tf.keras.utils.register_keras_serializable()
+def apply_attention_func(inputs):
+    x, attn = inputs
+    return x * tf.expand_dims(attn, axis=-1)
+
