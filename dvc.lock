@@ -98,7 +98,7 @@ stages:
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
         model.show_summary: true
         model.training_batch_size: 8
         model.training_class_weights: true
@@ -108,28 +108,28 @@ stages:
         model.training_reduce_lr_patience: 30
         model.use_attention: true
         model.use_bidirectional: true
-        model.use_dropouts: true
+        model.use_dropouts: false
     outs:
     - path: images/model.png
       hash: md5
-      md5: 21848f653506f0aecd88d1ffdefb8147
-      size: 76772
+      md5: 511dc58cb9d31ee26d9392ae340e9530
+      size: 68334
     - path: metrics/plots.csv
       hash: md5
-      md5: 77ac6141ef9fce3932002ae6caad5769
-      size: 36297
+      md5: cb8676dfddb4f2f173bc17e36578c267
+      size: 29943
     - path: metrics/scores.json
       hash: md5
-      md5: 25be20852546d1202fd3df069a89611a
-      size: 244
+      md5: afbb8210dd7de27519c7f657182cc5bc
+      size: 246
     - path: model/help_model.keras
       hash: md5
-      md5: e9a8a4ac40dc96b16cb8b0757920913d
-      size: 25631926
+      md5: 30ccba7da4f262e2ef8191f15a661a83
+      size: 6709008
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 4667284eaed2c09b6500257d1f05a6eb
-      size: 8574831
+      md5: 31b8171deeb0101cc08f0003a759792e
+      size: 2255317
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
