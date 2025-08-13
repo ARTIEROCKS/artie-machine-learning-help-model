@@ -100,7 +100,7 @@ stages:
         model.return_sequences: true
         model.second_lstm_layer: true
         model.show_summary: true
-        model.training_batch_size: 8
+        model.training_batch_size: 16
         model.training_class_weights: true
         model.training_early_stopping_patience: 100
         model.training_epochs: 500
@@ -116,19 +116,19 @@ stages:
       size: 76772
     - path: metrics/plots.csv
       hash: md5
-      md5: 77ac6141ef9fce3932002ae6caad5769
-      size: 36297
+      md5: c20a6b233fd8f6625d2d86635086dc9d
+      size: 22915
     - path: metrics/scores.json
       hash: md5
-      md5: 25be20852546d1202fd3df069a89611a
-      size: 244
+      md5: 4e8f2da184b05af8b4bf2713235c71a5
+      size: 246
     - path: model/help_model.keras
       hash: md5
-      md5: e9a8a4ac40dc96b16cb8b0757920913d
-      size: 25631926
+      md5: 3613b4a4a52f988d8bbf178a11a3c064
+      size: 25631925
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 4667284eaed2c09b6500257d1f05a6eb
+      md5: 21eec83ce8679b4ec7af4a43102766a5
       size: 8574831
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
