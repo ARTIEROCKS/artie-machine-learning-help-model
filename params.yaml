@@ -25,7 +25,7 @@ model:
   percentage_train_size: 70
   lstm_units: 256
   return_sequences: true
-  second_lstm_layer: true
+  second_lstm_layer: false
   use_dropouts: true
   use_bidirectional: true
   dropout_value: 0.5
