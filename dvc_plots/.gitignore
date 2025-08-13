@@ -1,2 +1,5 @@
 /heatmap_correlation_after.png
 /heatmap_correlation_before.png
+/shap_feature_importance_bar.png
+/shap_feature_importance_beeswarm.png
+/shap_feature_importance_waterfall.png

@@ -10,7 +10,15 @@ def loadjsondata(filepath):
     for line in open(filepath, 'r'):
         data.append(json.loads(line))
 
-    sortedData = sorted(data, key=lambda x: (x['student']['_id'], x['lastLogin'], x['dateTime']))
+    def safe_sort_key(x):
+        # Valores predeterminados para cuando falten campos
+        student_id = x.get('student', {}).get('_id', '')
+        last_login = x.get('lastLogin', '')
+        date_time = x.get('dateTime', '')
+        return (student_id, last_login, date_time)
+
+    sortedData = sorted(data, key=safe_sort_key)
+
     return sortedData
 
 
@@ -46,7 +54,7 @@ def getfirstaction(interventions):
 # Function to write the software interventions in csv format
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     row_list = []
-    row_list.append(['student_gender', 'student_mother_tongue', 'student_age', 'student_competence',
+    row_list.append(['student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
                      'student_motivation', 'exercise_skill_parallelism', 'exercise_skill_logical_thinking',
                      'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
                      'exercise_skill_information_representation',
@@ -54,12 +62,12 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                      'exercise_is_evaluation',
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
-                     'solution_distance_total_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
-                     'total_seconds','request_help'])
+                     'solution_distance_total_distance', 'apted_distance', 'seconds_help_open', 'finished_exercise',
+                     'valid_solution', 'grade', 'tree_grade', 'total_seconds','request_help'])
 
     for element in interventions:
 
-        student_gender = None
+        student_sex = None
         student_age = None
         total_seconds = None
         student_mother_tongue = 0
@@ -80,9 +88,11 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         solution_distance_position_distance = 0
         solution_distance_input_distance = 0
         solution_distance_total_distance = 0
+        apted_distance = 0
         seconds_help_open = 0
         valid_solution = 0
         grade = 0
+        tree_grade = 0
 
         exercise_is_evaluation = False
         request_help = False
@@ -115,7 +125,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         # Student information
         if 'student' in element:
             if 'gender' in element['student']:
-                student_gender = element['student']['gender']
+                student_sex = element['student']['gender']
             if 'age' in element['student']:
                 student_age = element['student']['age']
             if 'motherTongue' in element['student']:
@@ -163,6 +173,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             if 'totalDistance' in element['solutionDistance']:
                 solution_distance_total_distance = element['solutionDistance']['totalDistance']
 
+        if 'aptedDistance' in element:
+            apted_distance = element['aptedDistance']
         if 'requestHelp' in element:
             request_help = element['requestHelp']
         if 'secondsHelpOpen' in element:
@@ -173,9 +185,11 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             valid_solution = element['validSolution']
         if 'grade' in element:
             grade = element['grade']
+        if 'treeGrade' in element:
+            tree_grade = element['treeGrade']
 
         # Creating  the row of the csv
-        row_list.append([student_gender, student_mother_tongue, student_age, student_competence,
+        row_list.append([student_sex, student_mother_tongue, student_age, student_competence,
                          student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                          exercise_skill_flow_control, exercise_skill_user_interactivity,
                          exercise_skill_information_representation,
@@ -183,8 +197,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                          int(exercise_is_evaluation),
                          exercise_level, solution_distance_family_distance, solution_distance_element_distance,
                          solution_distance_position_distance, solution_distance_input_distance,
-                         solution_distance_total_distance,
-                         seconds_help_open, int(finished_exercise), valid_solution, grade, total_seconds,
+                         solution_distance_total_distance, apted_distance,
+                         seconds_help_open, int(finished_exercise), valid_solution, grade, tree_grade, total_seconds,
                          int(request_help)])
 
     return row_list

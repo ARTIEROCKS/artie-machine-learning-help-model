@@ -1,27 +1,43 @@
 stages:
   download:
-    cmd: python3 src/download.py data prod.artie.rocks 27017 artie_u ArtieU123! artie
+    cmd: python3 src/download.py data localhost 27017 artie_u ArtieU123 artie
     deps:
     - src/download.py
     outs:
     - data/pedagogicalinterventions.json
+    frozen: true
   transformation:
-    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json 
+      data/pedagogicalinterventions.csv
     deps:
     - data/pedagogicalinterventions.json
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
   transformationdr:
-    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json data/pedagogicalinterventions_datarobot.csv
+    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
+      data/pedagogicalinterventions_datarobot.csv
     deps:
     - data/pedagogicalinterventions.json
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions_datarobot.csv
+    frozen: true
+  dataanalysis:
+    cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv
+      dvc_plots/class_distribution.png data/class_distribution_summary.csv
+    deps:
+      - data/pedagogicalinterventions.csv
+      - src/data_analysis.py
+    outs:
+      - dvc_plots/shap_feature_importance_bar.png
+      - dvc_plots/shap_feature_importance_beeswarm.png
+      - dvc_plots/shap_feature_importance_waterfall.png
+      - data/shap_feature_importance.csv
   featureselection:
-    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv
-      data/featureselection.csv data/selectedfeatures.csv
+    cmd: python3 src/featureselection.py params.yaml 
+      data/pedagogicalinterventions.csv data/featureselection.csv 
+      data/selectedfeatures.csv
     deps:
     - data/pedagogicalinterventions.csv
     - src/featureselection.py
@@ -37,8 +53,9 @@ stages:
     - dvc_plots/heatmap_correlation_after.png
     - dvc_plots/heatmap_correlation_before.png
   train:
-    cmd: python3 src/train.py params.yaml data/featureselection.csv model/help_model.h5
-      metrics/plots.csv metrics/scores.json
+    cmd: python3 src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv 
+      --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv 
+      --metrics-file-name metrics/scores.json --use-gpu --output-dir images
     deps:
     - data/featureselection.csv
     - src/train.py
@@ -52,9 +69,17 @@ stages:
     - model.training_batch_size
     - model.training_epochs
     - model.use_dropouts
+    - model.use_bidirectional
+    - model.use_attention
+    - model.initial_learning_rate
+    - model.training_class_weights
+    - model.training_early_stopping_patience
+    - model.training_reduce_lr_patience
+    - model.training_reduce_lr_factor
     - model.show_summary
     outs:
-    - model/help_model.h5
+    - model/help_model.keras
+    - model/help_model_attention.keras
     - images/model.png
     metrics:
     - metrics/scores.json:
@@ -63,5 +88,8 @@ stages:
     - metrics/plots.csv
 artifacts:
   help_model:
-    path: model/help_model.h5
+    path: models/help_model.keras
+    type: model
+  help_model_attention:
+    path: models/help_model_attention.keras
     type: model

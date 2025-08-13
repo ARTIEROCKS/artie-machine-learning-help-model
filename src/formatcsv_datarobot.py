@@ -11,7 +11,14 @@ def loadjsondata(filepath):
     for line in open(filepath, 'r'):
         data.append(json.loads(line))
 
-    sortedData = sorted(data, key=lambda x: (x['student']['_id'], x['lastLogin'], x['dateTime']))
+    def safe_sort_key(x):
+        # Valores predeterminados para cuando falten campos
+        student_id = x.get('student', {}).get('_id', '')
+        last_login = x.get('lastLogin', '')
+        date_time = x.get('dateTime', '')
+        return (student_id, last_login, date_time)
+
+    sortedData = sorted(data, key=safe_sort_key)
     return sortedData
 
 
@@ -63,7 +70,7 @@ def check_groupid_timestamp(group_id_timestamp, group_id, timestamp):
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     row_list = []
     group_id_timestamp = {}
-    row_list.append(['group_id','date_time','student_gender', 'student_mother_tongue', 'student_age', 'student_competence',
+    row_list.append(['group_id','date_time','student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
                      'student_motivation', 'exercise_skill_parallelism', 'exercise_skill_logical_thinking',
                      'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
                      'exercise_skill_information_representation',
@@ -76,7 +83,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
     for element in interventions:
 
-        student_gender = None
+        student_sex = None
         student_age = None
         total_seconds = None
         student_mother_tongue = 0
@@ -137,7 +144,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         # Student information
         if 'student' in element:
             if 'gender' in element['student']:
-                student_gender = element['student']['gender']
+                student_sex = element['student']['gender']
             if 'age' in element['student']:
                 student_age = element['student']['age']
             if 'motherTongue' in element['student']:
@@ -202,7 +209,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
         if not result:
             # Creating  the row of the csv
-            row_list.append([group_id, date_time, student_gender, student_mother_tongue, student_age, student_competence,
+            row_list.append([group_id, date_time, student_sex, student_mother_tongue, student_age, student_competence,
                              student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                              exercise_skill_flow_control, exercise_skill_user_interactivity,
                              exercise_skill_information_representation,

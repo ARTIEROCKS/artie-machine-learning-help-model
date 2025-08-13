@@ -40,6 +40,12 @@ with open(directory + '/pedagogicalinterventions.json', 'a') as outfile:
         # 4.1- Deleting the elements that will not be used in machine learning
         del data['_id']
         del data['_class']
+        if 'relatedSolution' in data:
+            del data['relatedSolution']
+        if 'tree' in data:
+            del data['tree']
+        if 'solutionTree' in data:
+            del data['solutionTree']
         if 'elements' in data:
             del data['elements']
         if 'binary' in data:

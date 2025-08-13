@@ -3,19 +3,38 @@ selection:
   target: request_help
   number_of_features: 20
   high_correlation: 0.85
-  drop_columns: [exercise_is_evaluation, valid_solution, finished_exercise, exercise_valid_solution,
-    student_motivation, grade]
+  drop_columns:
+  - exercise_is_evaluation
+  - valid_solution
+  - finished_exercise
+  - exercise_valid_solution
+  - student_motivation
+  - grade
+  - tree_grade
+  - apted_distance
+  - solution_distance_family_distance
+  - solution_distance_element_distance
+  - solution_distance_position_distance
+  - solution_distance_input_distance
   heatmap_correlation_path_before: dvc_plots/heatmap_correlation_before.png
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
 model:
+  distance_calculation_type: ARTIE
   mask_value: -1
   percentage_train_size: 70
   lstm_units: 256
   return_sequences: true
   second_lstm_layer: true
   use_dropouts: true
+  use_bidirectional: true
   dropout_value: 0.5
-  training_epochs: 50
-  training_batch_size: 1
+  use_attention: true
+  initial_learning_rate: 0.1
+  training_epochs: 500
+  training_batch_size: 8
+  training_class_weights: true
+  training_early_stopping_patience: 100
+  training_reduce_lr_patience: 30
+  training_reduce_lr_factor: 0.3
   show_summary: true
