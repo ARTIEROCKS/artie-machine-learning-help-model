@@ -87,9 +87,21 @@ stages:
     plots:
     - metrics/plots.csv
 artifacts:
-  help_model:
+  help-model:
     path: models/help_model.keras
     type: model
-  help_model_attention:
+    desc: 'Help model'
+    labels:
+      - classification
+      - LSTM
+    meta:
+      framework: keras
+  help-attention-model:
     path: models/help_model_attention.keras
     type: model
+    desc: 'Help attention model'
+    labels:
+      - classification
+      - LSTM
+    meta:
+      framework: keras
