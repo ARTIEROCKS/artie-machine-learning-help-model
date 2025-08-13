@@ -26,7 +26,7 @@ model:
   lstm_units: 256
   return_sequences: true
   second_lstm_layer: true
-  use_dropouts: true
+  use_dropouts: false
   use_bidirectional: true
   dropout_value: 0.5
   use_attention: true
