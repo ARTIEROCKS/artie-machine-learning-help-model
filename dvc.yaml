@@ -86,3 +86,10 @@ stages:
         cache: false
     plots:
     - metrics/plots.csv
+artifacts:
+  help_model:
+    path: models/help_model.keras
+    type: model
+  help_model_attention:
+    path: models/help_model_attention.keras
+    type: model
