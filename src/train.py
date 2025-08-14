@@ -247,6 +247,7 @@ if __name__ == "__main__":
     parser.add_argument('--metrics-file-name', required=True, help='JSON file for metrics')
     parser.add_argument('--use-gpu', action='store_true', help='Enable GPU usage')
     parser.add_argument('--output-dir', default='images', help='Directory for output images')
+    parser.add_argument('--log-dir', default='logs', help='TensorBoard log directory')
     args = parser.parse_args()
 
     params_file = args.params_file
@@ -256,11 +257,13 @@ if __name__ == "__main__":
     metrics_file_name = args.metrics_file_name
     use_gpu = args.use_gpu
     output_dir = args.output_dir
+    log_dir = args.log_dir
 
-    # Check if GPU should be used based on command line argument
-    use_gpu = False
-    if len(sys.argv) > 6:
-        use_gpu = sys.argv[6].lower() == 'true'
+    # Ensure output directories exist
+    os.makedirs(os.path.dirname(plots_file_name), exist_ok=True)
+    os.makedirs(os.path.dirname(metrics_file_name), exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
     with open(params_file, 'r') as fd:
         params = yaml.safe_load(fd)
@@ -297,24 +300,15 @@ if __name__ == "__main__":
         if gpus:
             print(f"Available GPUs: {gpus}")
             try:
-                # Specific configuration for Metal GPU on Mac
-                # We do not use memory growth for Metal as it may cause issues
-                # Enable all available GPUs
                 tf.config.set_visible_devices(gpus, 'GPU')
-
-                # Optimal configuration for Metal
-                # Limit memory usage to avoid OOM
                 tf.config.experimental.set_virtual_device_configuration(
                     gpus[0],
                     [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)]
                 )
-
-                # Configuration for better performance with Metal (if available)
                 try:
-                    tf.config.optimizer.set_jit(False)  # Disable XLA which may cause issues with Metal
+                    tf.config.optimizer.set_jit(False)
                 except:
                     pass
-
                 print("Metal GPU enabled for training with safe settings")
             except RuntimeError as e:
                 print(f"Error configuring GPU: {e}")
@@ -324,8 +318,11 @@ if __name__ == "__main__":
             use_gpu = False
     else:
         # Disable GPU usage
-        tf.config.set_visible_devices([], 'GPU')
-        print("GPU disabled for training. Using CPU.")
+        try:
+            tf.config.set_visible_devices([], 'GPU')
+            print("GPU disabled for training. Using CPU.")
+        except Exception as e:
+            print(f"Could not disable GPU explicitly: {e}")
 
     # Loads the data file and gets the maximum time steps and the number of columns
     df, max_time_steps, columns = load(input_csv_file)
@@ -346,39 +343,51 @@ if __name__ == "__main__":
     print("- Visible devices:", tf.config.get_visible_devices())
     print("- Using GPU:", use_gpu)
 
-    # Custom callback to print the learning rate at the end of each epoch
+    # Custom callback to track learning rate each epoch and log to TensorBoard
     class LearningRateLogger(tf.keras.callbacks.Callback):
+        def __init__(self, log_dir):
+            super().__init__()
+            self.log_dir = log_dir
+            self.lr_values = []
+            self.writer = tf.summary.create_file_writer(os.path.join(log_dir, 'learning_rate'))
+
         def on_epoch_end(self, epoch, logs=None):
-            # Access the learning rate in a way compatible with current TF versions
+            logs = logs or {}
+            # Retrieve current learning rate robustly
             try:
-                # Modern method: use get_config()
-                lr = self.model.optimizer.get_config()['learning_rate']
+                optimizer = self.model.optimizer
+                lr = optimizer.learning_rate
+                if isinstance(lr, tf.keras.optimizers.schedules.LearningRateSchedule):
+                    lr = lr(optimizer.iterations)
                 if hasattr(lr, 'numpy'):
                     lr = lr.numpy()
-            except (AttributeError, KeyError):
-                # Alternative method: try with _decayed_lr
-                try:
-                    lr = self.model.optimizer._decayed_lr(tf.float32).numpy()
-                except (AttributeError, ValueError):
-                    # Last resort: use a fixed value
-                    lr = "Not available"
+            except Exception:
+                lr = None
+            self.lr_values.append(lr)
+            if lr is not None:
+                with self.writer.as_default():
+                    tf.summary.scalar('learning_rate', data=lr, step=epoch)
             print(f"\nLearning rate at epoch {epoch+1}: {lr}")
 
-    callbacks = []
+    # Build callbacks list
+    lr_logger = LearningRateLogger(log_dir)
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True,
+                                                    write_images=False, update_freq='epoch')
+
+    callbacks = [lr_logger, tensorboard_cb]
     if training_early_stopping_patience > 0:
-        # Configurer callbacks for better performance and monitoring
-        callbacks = [
-            LearningRateLogger(),
+        # Add performance-related callbacks
+        callbacks.extend([
             tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss',
                                                  factor=training_reduce_lr_factor,
                                                  patience=training_reduce_lr_patience,
                                                  min_lr=0.0001,
-                                                 verbose=1),  # Verbose to show LR changes
+                                                 verbose=1),
             tf.keras.callbacks.EarlyStopping(monitor='val_recall',
                                              patience=training_early_stopping_patience,
                                              mode='max',
                                              restore_best_weights=True)
-        ]
+        ])
 
     # Use run_eagerly=True to avoid graph errors with symbolic tensors
     model.compile(
@@ -389,28 +398,19 @@ if __name__ == "__main__":
                  tf.keras.metrics.Recall(name='recall'),
                  tf.keras.metrics.AUC(name='auc', curve='PR')
                  ],
-        run_eagerly=True  # This solves many graph problems
+        run_eagerly=True
     )
 
     if training_class_weights:
-        # Flatten the 3D array (samples, time_steps, 1) to 1D for class weight computation
+        # Flatten labels, removing masked values for class weight calculation
         train_y_flat = train_y.reshape(-1)
         train_y_flat = train_y_flat[train_y_flat != mask_value]
-
-        # Compute class weights to handle class imbalance
         classes = np.unique(train_y_flat)
         weights = compute_class_weight(class_weight='balanced', classes=classes, y=train_y_flat)
-
-        # Create a dictionary with class weights
         class_weights = dict(zip(classes, weights))
         print("Applied class weights:", class_weights)
-
-        # Compute sample weights for time series data
         sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
-
-        # Adjust batch_size for better performance on GPU
         optimal_batch_size = 64 if use_gpu else training_batch_size
-
         print(f"Starting training with batch size: {optimal_batch_size}")
         print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
         history = model.fit(train_x,
@@ -418,15 +418,13 @@ if __name__ == "__main__":
                             epochs=training_epochs,
                             batch_size=optimal_batch_size,
                             validation_data=(test_x, test_y),
-                            verbose=1,  # 1 = progress bar for each epoch
+                            verbose=1,
                             shuffle=False,
                             callbacks=callbacks,
                             sample_weight=sample_weights)
 
     else:
-        # Adjust batch_size for better performance on GPU
         optimal_batch_size = 64 if use_gpu else training_batch_size
-
         print(f"Starting training with batch size: {optimal_batch_size}")
         print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
         history = model.fit(train_x,
@@ -434,77 +432,82 @@ if __name__ == "__main__":
                             epochs=training_epochs,
                             batch_size=optimal_batch_size,
                             validation_data=(test_x, test_y),
-                            verbose=1,  # 1 = progress bar for each epoch
+                            verbose=1,
                             shuffle=False,
                             callbacks=callbacks)
 
     # Saving the model
     print("\nTraining completed successfully. Saving model...")
     try:
-        # Try to save in modern .keras format
         model.save(output_model_file, save_format='keras')
         print(f"Model saved to {output_model_file} in modern format")
     except Exception as e:
         print(f"Error saving in modern format: {e}")
-        # Fallback to HDF5 format
         model.save(output_model_file)
         print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
     # Save the attention submodel if attention is used
     if use_attention and hasattr(model, 'attention_model'):
         attention_model_path = output_model_file.replace('.keras', '_attention.keras')
-        model.attention_model.save(attention_model_path)
+        try:
+            model.attention_model.save(attention_model_path, save_format='keras')
+        except Exception:
+            model.attention_model.save(attention_model_path)
         print(f"Attention submodel saved to {attention_model_path}")
 
-    # Check if the history is empty
+    # Prepare history DataFrame
     if not history.history:
-        print("WARNING: The training history is empty. It's possible the model has not been correctly trained.")
+        print("WARNING: The training history is empty.")
     else:
-        print(f"Model trained during {len(history.history['loss'])} epochs.")
-        # Check if precision and recall metrics are available
-        if 'precision' in history.history and 'recall' in history.history:
-            print(f"Final metrics: Precision: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
+        # Attach learning rate series
+        if len(lr_logger.lr_values) == len(history.history['loss']):
+            history.history['lr'] = lr_logger.lr_values
         else:
-            print("Available metrics:", list(history.history.keys()))
-            print(f"Final metrics: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
+            # Pad or trim to match length if mismatch
+            lr_series = lr_logger.lr_values[:len(history.history['loss'])]
+            history.history['lr'] = lr_series
+        hist_df = pd.DataFrame(history.history)
+        print(f"Model trained during {len(hist_df['loss'])} epochs.")
+        if 'precision' in hist_df and 'recall' in hist_df:
+            print(f"Final metrics: Precision: {hist_df['precision'].iloc[-1]:.4f}, Recall: {hist_df['recall'].iloc[-1]:.4f}")
+        else:
+            print("Available metrics:", list(hist_df.columns))
+            print(f"Final binary_accuracy: {hist_df['binary_accuracy'].iloc[-1]:.4f}")
 
     # If we want to show the summary
     if show_summary:
         print("\nModel summary:")
         model.summary()
         try:
-            # Save model diagram to output_dir
             tf.keras.utils.plot_model(model, to_file=os.path.join(output_dir, 'model.png'), dpi=200)
             print(f"Model diagram saved to {os.path.join(output_dir, 'model.png')}")
         except Exception as e:
             print(f"Error generating model diagram: {e}")
-            print("This is not critical for model training.")
 
-    # Saving the plots and metrics
-    # convert the history.history dict to a pandas DataFrame:
-    hist_df = pd.DataFrame(history.history)
+    # Save plots (per-epoch metrics) and aggregated metrics for DVC
+    if history.history:
+        with open(plots_file_name, mode='w') as f:
+            hist_df.to_csv(f, index_label='epoch')
 
-    # Create a DataFrame for metrics
-    metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
+        metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
+        if 'precision' in hist_df:
+            metrics_data['precision'] = hist_df['precision'].mean()
+        if 'recall' in hist_df:
+            metrics_data['recall'] = hist_df['recall'].mean()
+        if 'auc' in hist_df:
+            metrics_data['auc'] = hist_df['auc'].mean()
+        if 'val_loss' in hist_df:
+            metrics_data['val_loss'] = hist_df['val_loss'].mean()
+        if 'val_binary_accuracy' in hist_df:
+            metrics_data['val_binary_accuracy'] = hist_df['val_binary_accuracy'].mean()
+        if 'val_auc' in hist_df:
+            metrics_data['val_auc'] = hist_df['val_auc'].mean()
+        if 'lr' in hist_df:
+            metrics_data['final_lr'] = hist_df['lr'].iloc[-1]
+            metrics_data['mean_lr'] = hist_df['lr'].mean()
+        metrics_df = pd.DataFrame.from_records([metrics_data])
+        with open(metrics_file_name, mode='w') as f:
+            metrics_df.to_json(f)
+        print(f"Per-epoch metrics saved to {plots_file_name} and aggregated metrics saved to {metrics_file_name}")
 
-    # Add precision, recall, AUC and validation metrics if they exist
-    if 'precision' in hist_df:
-        metrics_data['precision'] = hist_df['precision'].mean()
-    if 'recall' in hist_df:
-        metrics_data['recall'] = hist_df['recall'].mean()
-    if 'auc' in hist_df:
-        metrics_data['auc'] = hist_df['auc'].mean()
-    if 'val_loss' in hist_df:
-        metrics_data['val_loss'] = hist_df['val_loss'].mean()
-    if 'val_binary_accuracy' in hist_df:
-        metrics_data['val_binary_accuracy'] = hist_df['val_binary_accuracy'].mean()
-    if 'val_auc' in hist_df:
-        metrics_data['val_auc'] = hist_df['val_auc'].mean()
-
-    metrics_df = pd.DataFrame.from_records([metrics_data])
-
-    with open(plots_file_name, mode='w') as f:
-        hist_df.to_csv(f, index_label='epoch')
-
-    with open(metrics_file_name, mode='w') as f:
-        metrics_df.to_json(f)
+    print(f"TensorBoard logs written to: {log_dir}. Launch with: tensorboard --logdir {log_dir}")
