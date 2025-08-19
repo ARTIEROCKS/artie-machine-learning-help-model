@@ -50,7 +50,6 @@ stages:
         - student_motivation
         - grade
         - tree_grade
-        - apted_distance
         - solution_distance_family_distance
         - solution_distance_element_distance
         - solution_distance_position_distance
@@ -62,20 +61,20 @@ stages:
     outs:
     - path: data/featureselection.csv
       hash: md5
-      md5: 4c50af9659a322a5a507f4a5576735dd
-      size: 748621
+      md5: a115a653536a08594150bf50c731c353
+      size: 799026
     - path: data/selectedfeatures.csv
       hash: md5
-      md5: b390553fd959cc418d9828487803d65c
-      size: 325
+      md5: 6f6cd2f6751acc5e24863d3d73744e13
+      size: 340
     - path: dvc_plots/heatmap_correlation_after.png
       hash: md5
-      md5: 6f3f4b208f1569f8908b5ade1de9a35c
-      size: 196524
+      md5: fa56a76b9b4623d6ed2d6527baaf4722
+      size: 215941
     - path: dvc_plots/heatmap_correlation_before.png
       hash: md5
-      md5: e2fc22c06d8c2a34066ab1d607d467de
-      size: 224705
+      md5: 9fe87f07c08b278e570ef56061ae2782
+      size: 247209
   train:
     cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
       data/featureselection.csv --output-model-file model/help_model.keras 
@@ -84,12 +83,12 @@ stages:
     deps:
     - path: data/featureselection.csv
       hash: md5
-      md5: 4c50af9659a322a5a507f4a5576735dd
-      size: 748621
+      md5: a115a653536a08594150bf50c731c353
+      size: 799026
     - path: src/train.py
       hash: md5
-      md5: 9456deb598c5aab13049a34f55a6213d
-      size: 22469
+      md5: e03d0d0420c8042bc8b9dbad7209c8f6
+      size: 22864
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -98,7 +97,7 @@ stages:
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
         model.show_summary: true
         model.training_batch_size: 8
         model.training_class_weights: true
@@ -107,29 +106,29 @@ stages:
         model.training_reduce_lr_factor: 0.3
         model.training_reduce_lr_patience: 30
         model.use_attention: true
-        model.use_bidirectional: true
-        model.use_dropouts: true
+        model.use_bidirectional: false
+        model.use_dropouts: false
     outs:
     - path: images/model.png
       hash: md5
-      md5: 21848f653506f0aecd88d1ffdefb8147
-      size: 76772
+      md5: 9f3b14fdeee6ea1a444cabedb23f656e
+      size: 65323
     - path: metrics/plots.csv
       hash: md5
-      md5: 77ac6141ef9fce3932002ae6caad5769
-      size: 36297
+      md5: 4246ca16861d67d2ce4c90352e531225
+      size: 23285
     - path: metrics/scores.json
       hash: md5
-      md5: 25be20852546d1202fd3df069a89611a
-      size: 244
+      md5: 0a835c1f04935b9d08d34e81079fde24
+      size: 305
     - path: model/help_model.keras
       hash: md5
-      md5: e9a8a4ac40dc96b16cb8b0757920913d
-      size: 25631926
+      md5: a21e6641f3d2752293dcaba9bac8e918
+      size: 3374473
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 4667284eaed2c09b6500257d1f05a6eb
-      size: 8574831
+      md5: 218b82f76b71112bf0cdf1a7c27d96db
+      size: 1140104
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
@@ -140,8 +139,8 @@ stages:
       size: 14524598
     - path: src/formatcsv.py
       hash: md5
-      md5: 26b41354c748be4b3c58a13a674be4a0
-      size: 9865
+      md5: 46a268f3ca1d793655473f63453b8243
+      size: 10098
     outs:
     - path: data/pedagogicalinterventions_datarobot.csv
       hash: md5
@@ -171,8 +170,8 @@ stages:
       size: 312853
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 33b94c9d99b45c6de167d9db593c0583
-      size: 471192
+      md5: 23c2bff0471c0538ac4323c59fc0944e
+      size: 466876
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
       md5: f487ad66493cfbafffd554ce850ff1f6
