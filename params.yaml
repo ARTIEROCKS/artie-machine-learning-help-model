@@ -11,7 +11,6 @@ selection:
   - student_motivation
   - grade
   - tree_grade
-  - apted_distance
   - solution_distance_family_distance
   - solution_distance_element_distance
   - solution_distance_position_distance
@@ -20,14 +19,14 @@ selection:
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
 model:
-  distance_calculation_type: ARTIE
+  distance_calculation_type: APTED
   mask_value: -1
   percentage_train_size: 70
   lstm_units: 256
   return_sequences: true
   second_lstm_layer: true
-  use_dropouts: true
-  use_bidirectional: true
+  use_dropouts: false
+  use_bidirectional: false
   dropout_value: 0.5
   use_attention: true
   initial_learning_rate: 0.1
