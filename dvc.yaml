@@ -86,6 +86,19 @@ stages:
         cache: false
     plots:
     - metrics/plots.csv
+  attentionheatmap:
+    cmd: python3 src/generate_attention_heatmap.py --params-file params.yaml --input-csv-file data/featureselection.csv --model-file model/help_model.keras --sequence-index 0 --output-dir images --heatmap-file-name attention_heatmap.png --model-diagram-name model_lstm_attention.png --save-attention-csv metrics/test_attention.csv
+    deps:
+    - src/generate_attention_heatmap.py
+    - src/train.py
+    - src/keras_custom_layers.py
+    - params.yaml
+    - data/featureselection.csv
+    - model/help_model.keras
+    outs:
+    - images/attention_heatmap.png
+    - images/model_lstm_attention.png
+    - metrics/test_attention.csv
 artifacts:
   help-model:
     path: models/help_model.keras

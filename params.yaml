@@ -11,7 +11,6 @@ selection:
   - student_motivation
   - grade
   - tree_grade
-  - apted_distance
   - solution_distance_family_distance
   - solution_distance_element_distance
   - solution_distance_position_distance
