@@ -80,7 +80,6 @@ stages:
     outs:
     - model/help_model.keras
     - model/help_model_attention.keras
-    - images/model.png
     metrics:
     - metrics/scores.json:
         cache: false
@@ -96,8 +95,6 @@ stages:
     - data/featureselection.csv
     - model/help_model.keras
     outs:
-    - images/attention_heatmap.png
-    - images/model_lstm_attention.png
     - metrics/test_attention.csv
 artifacts:
   help-model:
