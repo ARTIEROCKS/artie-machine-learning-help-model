@@ -1,90 +1,96 @@
-# HelpModel: LSTM + Atención explicable con DVC y TensorBoard
+# HelpModel: Explainable LSTM + Attention with DVC and TensorBoard
 
-## 1. Descripción
-Proyecto para entrenar un modelo LSTM (opcionalmente bidireccional y con mecanismo de atención explicable) que predice `request_help` en secuencias temporales educativas. Orquestación con **DVC**, modelado con **TensorFlow/Keras**, registro de métricas y evolución con **TensorBoard** y exportación de un submodelo de atención para análisis explicativo.
+## 1. Overview
+HelpModel trains an LSTM (optionally bidirectional and with an intrinsically explainable attention mechanism) to predict `request_help` events in educational temporal interaction sequences. The project integrates:
+- TensorFlow/Keras for modeling
+- A custom attention mechanism (serializable, mask-aware)
+- DVC for reproducible data & experiment pipeline
+- TensorBoard for metric and training dynamics visualization
+- Export of a standalone attention submodel for post‑hoc explainability
 
-## 2. Flujo de procesamiento
-1. Descarga / generación de datos (`download` – opcional según tu pipeline).
-2. Transformación a CSV (`transformation`).
-3. Análisis exploratorio y SHAP (`dataanalysis`).
-4. Selección de características (`featureselection`).
-5. Entrenamiento del modelo LSTM con o sin atención (`train`).
-6. Evaluación y extracción de predicciones + pesos de atención (`test_train`).
+## 2. End-to-End Pipeline (DVC Stages)
+1. (Optional) `download`: Download or generate raw source data.
+2. `transformation`: Convert raw sources into unified CSV.
+3. `dataanalysis`: Exploratory analysis + SHAP computations.
+4. `featureselection`: Produce filtered feature set.
+5. `train`: Train main LSTM model (with/without attention).
+6. `test_train`: Inference, attention extraction, prediction visualization.
+7. (Optional added) `attentionheatmap`: Generate a focused heatmap + architecture diagram from a chosen test sequence.
 
-## 3. Estructura principal
+Graph:
+```bash
+dvc dag
 ```
-├── dvc.yaml                # Definición de stages DVC
-├── params.yaml             # Hiperparámetros y configuración
+Reproduce full pipeline:
+```bash
+dvc repro
+```
+Run only training:
+```bash
+dvc repro train
+```
+
+## 3. Repository Structure
+```
+├── dvc.yaml                 # DVC stages definition
+├── dvc.lock                 # Locked versions of stages after repro
+├── params.yaml              # Hyperparameters & configuration
 ├── src/
-│   ├── train.py            # Entrenamiento principal
-│   ├── test_train.py       # Inferencia + extracción atención
-│   ├── keras_custom_layers.py # Funciones/capas personalizadas serializables
-│   ├── data_analysis.py, featureselection.py, formatcsv*.py, download.py
-├── model/                  # Modelos guardados (.keras)
-├── metrics/                # Métricas, predicciones, atención, plots DVC
-├── images/                 # Figuras (arquitectura, predicciones, etc.)
-├── logs/                   # Eventos TensorBoard (train, validation, learning_rate)
-└── requirements.txt
+│   ├── train.py             # Training entrypoint
+│   ├── test_train.py        # Inference + attention extraction
+│   ├── generate_attention_heatmap.py  # Focused attention visualization (single sequence)
+│   ├── keras_custom_layers.py         # Custom serializable attention-related functions
+│   ├── data_analysis.py, featureselection.py, download.py, formatcsv*.py
+├── model/                   # Saved models (.keras)
+├── metrics/                 # Metrics, attention weights, predictions, DVC plots data
+├── images/                  # Figures (architecture, heatmaps, sequence prediction plots)
+├── logs/                    # TensorBoard event logs
+├── data/                    # Processed input data (after feature selection, etc.)
+├── requirements.txt
+├── README.md
+└── LICENSE
 ```
 
-## 4. Requisitos
+## 4. Installation
+Requirements:
 - Python 3.11+
-- macOS ARM (ejemplo) con soporte Metal para acelerar TensorFlow.
+- (macOS example) Optional Metal acceleration for TensorFlow.
 
-Instalación base:
+Setup:
 ```bash
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-Para GPU (macOS Metal) si faltase:
+GPU (macOS Metal) if missing:
 ```bash
 pip install tensorflow-macos tensorflow-metal
 ```
 
-## 5. Parámetros clave (`params.yaml` – sección `model`)
-- `mask_value`: valor de padding/masking.
-- `percentage_train_size`: % de secuencias para entrenamiento.
-- `lstm_units`: tamaño de unidades LSTM.
-- `return_sequences`: si la capa LSTM final devuelve secuencias completas.
-- `second_lstm_layer`: añade una LSTM previa adicional.
-- `use_dropouts` + `dropout_value`: regularización.
-- `use_bidirectional`: activa Bidirectional LSTM.
-- `use_attention`: activa mecanismo de atención explicable.
-- `initial_learning_rate`: LR inicial Adam.
-- `training_epochs`, `training_batch_size`.
-- `training_class_weights`: activar cálculo de class weights.
-- Callbacks: `training_early_stopping_patience`, `training_reduce_lr_patience`, `training_reduce_lr_factor`.
-- `show_summary`: imprime summary del modelo.
+## 5. Key Parameters (`params.yaml` > `model`)
+| Param | Purpose |
+|-------|---------|
+| `mask_value` | Padding value used for sequence masking. |
+| `percentage_train_size` | % of sequences used for training split. |
+| `lstm_units` | Units in principal LSTM layer. |
+| `return_sequences` | Whether final LSTM layer returns full sequence. Must be true if attention is enabled. |
+| `second_lstm_layer` | Adds an extra LSTM before the final one. |
+| `use_dropouts`, `dropout_value` | Regularization settings. |
+| `use_bidirectional` | Wrap final LSTM in Bidirectional. |
+| `use_attention` | Enables intrinsic attention mechanism. |
+| `initial_learning_rate` | Adam initial LR. |
+| `training_epochs`, `training_batch_size` | Core training loop config. |
+| `training_class_weights` | If true, compute class weights for imbalance. |
+| `training_early_stopping_patience` | Early stopping patience epochs. |
+| `training_reduce_lr_patience`, `training_reduce_lr_factor` | LR scheduler. |
+| `show_summary` | Print model summary. |
 
-Cambia valores y luego ejecuta:
+Adjust values then:
 ```bash
 dvc repro train
 ```
 
-## 6. Ejecución de la pipeline con DVC
-Mostrar grafo:
-```bash
-dvc dag
-```
-Reproducir todo:
-```bash
-dvc repro
-```
-Solo entrenamiento:
-```bash
-dvc repro train
-```
-Ver métricas:
-```bash
-dvc metrics show
-```
-Ver plots:
-```bash
-dvc plots show
-```
-
-## 7. Ejecución manual del entrenamiento (fuera de DVC)
+## 6. Manual Training Execution
 ```bash
 python src/train.py \
   --params-file params.yaml \
@@ -95,34 +101,37 @@ python src/train.py \
   --use-gpu \
   --output-dir images
 ```
-Genera también (si `use_attention: true`):
-- `model/help_model_attention.keras` (submodelo de atención)
-- `images/model.png`
-- `metrics/scores.json`, `metrics/plots.csv`
+Generates (when `use_attention: true`):
+- `model/help_model.keras` (full model)
+- `model/help_model_attention.keras` (attention submodel returning weights)
+- `images/model.png` (general architecture)
+- Metrics & per-epoch plots data.
 
-## 8. Test / inferencia y extracción de atención
+## 7. Inference + Attention Extraction
 ```bash
 python src/test_train.py params.yaml model/help_model.keras data/featureselection.csv \
   --output_dir images --use_gpu --test-sequences 15
 ```
-Produce:
-- `metrics/test_predictions.csv` (predicciones por paso)
-- `metrics/test_attention.csv` (pesos de atención alineados)
-- Figuras opcionales en `images/` (desactivar con `--no-viz`).
+Outputs:
+- `metrics/test_predictions.csv` (per-step real vs predicted probability)
+- `metrics/test_attention.csv` (aligned attention weights)
+- Sequence prediction & feature importance figures (unless `--no-viz` specified)
 
-## 9. Mecanismo de atención
-Cuando `use_attention` está activo:
-1. Dense(1, tanh) produce `attention_score` por paso.
-2. Se comprime eje final (squeeze) -> vector (batch, time_steps).
-3. Se genera máscara (1 válido / 0 padding) usando `mask_value`.
-4. Se aplican -∞ a pasos enmascarados para que Softmax los anule.
-5. Softmax normaliza en ejes temporales válidos → `attention_weights`.
-6. Se aplica multiplicación elemento a elemento (sin reducir) sobre la secuencia.
-7. Capa final Dense(1, sigmoid) genera probabilidades por paso.
+## 8. Attention Mechanism (Intrinsic Explainability)
+If `use_attention` is enabled:
+1. Dense(1, tanh) produces raw attention score per timestep.
+2. Squeeze removes singleton dimension → shape (batch, time_steps).
+3. A mask is computed from padded steps (any timestep with all features == `mask_value`).
+4. Padded positions receive large negative values (effectively -inf) before softmax.
+5. Softmax normalizes valid positions → `attention_weights` (probability distribution over real steps).
+6. Element-wise weighting of sequence features is produced (preserving time dimension).
+7. Final Dense(1, sigmoid) yields per-step probabilities of `request_help`.
 
-Submodelo de atención (`help_model_attention.keras`) devuelve solo `attention_weights` para el mismo input, permitiendo auditoría explicable.
+Two complementary artifacts:
+- Full model: for actual predictions.
+- Attention submodel: returns only `attention_weights` for the same inputs, enabling auditing and temporal interpretability.
 
-## 10. Extracción programática de pesos de atención
+## 9. Programmatic Attention Retrieval
 ```python
 import tensorflow as tf
 from keras_custom_layers import (compute_mask_layer, squeeze_last_axis_func,
@@ -152,87 +161,113 @@ att_model = tf.keras.models.load_model(
 attention_weights = att_model.predict(batch_x)
 ```
 
-## 11. TensorBoard
-Logs generados automáticamente en `logs/` (subdirectorios train, validation, learning_rate). Ejecutar:
+## 10. Focused Attention Heatmap Stage
+`generate_attention_heatmap.py` creates:
+- A single-sequence attention heatmap (`images/attention_heatmap.png`).
+- A model architecture diagram (`images/model_lstm_attention.png`).
+If Graphviz/pydot are missing, a placeholder diagram is created (ensuring DVC output consistency). Install real dependencies for a richer diagram:
+```bash
+pip install pydot graphviz
+# macOS system graphviz
+brew install graphviz
+```
+
+## 11. TensorBoard Integration
+Event logs in `logs/` (subdirs: `train`, `validation`, `learning_rate`). Launch:
 ```bash
 tensorboard --logdir logs --port 6006
 ```
-Abre `http://localhost:6006` para visualizar curvas de loss, métricas y LR.
+Navigate to http://localhost:6006.
 
-## 12. Métricas y artefactos
-- `metrics/scores.json`: métricas finales (loss, binary_accuracy, precision, recall, auc, etc.).
-- `metrics/plots.csv`: histórico por epoch (para DVC plots).
-- `metrics/test_predictions.csv`: inferencia paso a paso (etiqueta real + predicción).
-- `metrics/test_attention.csv`: matriz de pesos de atención.
-- `model/help_model.keras`: modelo completo.
-- `model/help_model_attention.keras`: submodelo de atención.
+## 12. Metrics & Artifacts Summary
+| File | Description |
+|------|-------------|
+| `metrics/scores.json` | Final aggregate metrics (loss, accuracy, precision, recall, AUC…). |
+| `metrics/plots.csv` | Epoch-by-epoch logged metrics for DVC plots. |
+| `metrics/test_predictions.csv` | Per-step ground truth vs probability. |
+| `metrics/test_attention.csv` | Attention weights aligned to padded sequence length. |
+| `images/model.png` | Trained model architecture snapshot. |
+| `images/model_lstm_attention.png` | Attention architecture diagram (or placeholder). |
+| `images/attention_heatmap.png` | Heatmap for selected sequence. |
+| `model/help_model.keras` | Full predictive model. |
+| `model/help_model_attention.keras` | Isolated attention submodel. |
 
-## 13. Uso de GPU
-Activar con `--use-gpu` (train y test). Se listan dispositivos y se fuerza el uso de GPU si está disponible (Metal en macOS). Si ves `memory 0 MB` en Metal es normal (gestión diferida). Para ver que realmente ejecuta en GPU puedes añadir:
+## 13. GPU Usage (macOS Metal)
+Enable with `--use-gpu`. If GPU devices not listed, ensure `tensorflow-macos` + `tensorflow-metal` are installed. Quick check:
 ```python
+import tensorflow as tf
 print(tf.config.list_logical_devices('GPU'))
 ```
 
-## 14. Serialización segura (evitando lambdas inline)
-Las funciones usadas en capas Lambda están definidas y registradas en `keras_custom_layers.py` con `@tf.keras.utils.register_keras_serializable` para permitir carga sin `safe_mode=False`. Evita errores como:
-`Could not locate function 'func'`.
+## 14. Safe Serialization (No Inline Lambdas)
+All functions used by Lambda layers are defined & registered in `keras_custom_layers.py` using `@tf.keras.utils.register_keras_serializable`. This prevents deserialization errors such as:
+```
+Could not locate function 'func'
+```
+By avoiding anonymous inline lambdas, we guarantee portability and stable loading with `compile=False`.
 
-## 15. Problemas comunes y soluciones
-| Problema | Causa | Solución |
-|----------|-------|----------|
-| `IndexError: list index out of range` al importar `train.py` | Ejecución accidental al importar | Asegurar bloque `if __name__ == "__main__":` (implementado). |
-| Error deserializando Lambda | Función no registrada | Usar/añadir decorador `@register_keras_serializable`. |
-| Pesos no cargan (0 variables) | Falta `custom_objects` o mismatch | Pasar diccionario con funciones registradas. |
-| GPU ignorada | Falta flag o instalación | Añadir `--use-gpu` e instalar `tensorflow-metal`. |
+## 15. Common Issues & Resolutions
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Deserialization error for Lambda | Missing `@register_keras_serializable` | Ensure custom functions registered (already done). |
+| Extra feature columns mismatch | Data pipeline changed post-training | Re-align preprocessing or truncate extra columns (script now truncates when safe). |
+| Output file missing in DVC stage | Diagram failed (Graphviz absent) | Fallback placeholder now guarantees file creation. |
+| Attention shape mismatch | Sequence dims differ from training | Validate & adjust feature dimension before prediction. |
 
-## 16. Añadir un nuevo hiperparámetro rastreable
-1. Añadir en `params.yaml`.
-2. Consumirlo en `train.py` / `test_train.py` (argparse o lectura YAML).
-3. Añadirlo en `dvc.yaml` bajo `stages.train.params`.
-4. Ejecutar `dvc repro`.
+## 16. Adding a New Hyperparameter
+1. Add under `params.yaml`.
+2. Consume in `train.py` / `test_train.py`.
+3. Reference in `dvc.yaml` stage params.
+4. Run `dvc repro`.
 
-## 17. Limpieza y regeneración
+## 17. Clean & Reproduce
 ```bash
 rm -f model/help_model*.keras
 rm -f metrics/*.json metrics/*.csv
+rm -f images/*.png
 dvc repro train
 ```
 
-## 18. Visualización de secuencias
-`test_train.py` genera figuras de predicción y (opcionalmente) importancia/atención por secuencia. Desactiva con `--no-viz` para ejecuciones batch.
+## 18. Sequence Visualization
+`test_train.py` can produce per-sequence prediction plots and (if enabled) attention/importance figures. Disable visual generation with `--no-viz` for batch automation.
 
-## 19. Próximas mejoras sugeridas
-- Exportación ONNX.
-- SHAP sobre embeddings intermedios + atención.
-- Validación temporal (walk-forward).
-- Paquete Docker reproducible.
+## 19. Design Rationale (Brief Reflection)
+- Intrinsic attention (instead of post-hoc methods only) provides immediate temporal interpretability and aligns with pedagogical intervention needs.
+- Mask-aware attention ensures padded timesteps cannot dilute probability mass.
+- Separate attention submodel lowers computational & cognitive overhead for downstream analytics.
+- DVC guarantees reproducibility for both data transformations and modeling decisions, crucial in educational settings where traceability is mandated.
+- Eliminating inline lambdas future-proofs serialization across TensorFlow versions and mixed deployment targets.
 
-## 20. Comandos rápidos
+## 20. Suggested Future Enhancements
+- ONNX export for broader runtime compatibility.
+- Unified explainer combining attention + SHAP per timestep.
+- Walk-forward temporal validation to evaluate generalization drift.
+- Docker image for hermetic reproducibility.
+- Automated fairness auditing (e.g., segment-based performance).
+
+## 21. Quick Commands
 ```bash
-# Entrenar (pipeline)
+# Full pipeline
+dvc repro
+# Training only
 dvc repro train
-
-# Entrenar manual
-python src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv \
-  --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv \
-  --metrics-file-name metrics/scores.json --use-gpu --output-dir images
-
-# Test / inferencia
-python src/test_train.py params.yaml model/help_model.keras data/featureselection.csv \
-  --output_dir images --use_gpu --test-sequences 10 --no-viz
-
+# Inference + attention
+python src/test_train.py params.yaml model/help_model.keras data/featureselection.csv --output_dir images --test-sequences 10 --no-viz
+# Focused heatmap stage (if defined in dvc.yaml)
+dvc repro attentionheatmap
 # TensorBoard
 tensorboard --logdir logs
-
-# Métricas DVC
+# Metrics
 dvc metrics show
-# Plots DVC
+# Plots
 dvc plots show
 ```
 
-## 21. Licencia
-(Completar según corresponda.)
+## 22. License
+MIT License (see LICENSE file).
+
+## 23. Citation
+(If publishing, add BibTeX entry here.)
 
 ---
-Si necesitas ampliar este README (por ejemplo, sección de troubleshooting más profunda o guía de despliegue), indícalo y lo ajustamos.
-
+If you need deeper troubleshooting guidance or deployment documentation, open an issue or extend the relevant section.
