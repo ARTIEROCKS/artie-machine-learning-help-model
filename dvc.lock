@@ -50,7 +50,6 @@ stages:
         - student_motivation
         - grade
         - tree_grade
-        - apted_distance
         - solution_distance_family_distance
         - solution_distance_element_distance
         - solution_distance_position_distance
@@ -62,20 +61,20 @@ stages:
     outs:
     - path: data/featureselection.csv
       hash: md5
-      md5: 4c50af9659a322a5a507f4a5576735dd
-      size: 748621
+      md5: a115a653536a08594150bf50c731c353
+      size: 799026
     - path: data/selectedfeatures.csv
       hash: md5
-      md5: b390553fd959cc418d9828487803d65c
-      size: 325
+      md5: 6f6cd2f6751acc5e24863d3d73744e13
+      size: 340
     - path: dvc_plots/heatmap_correlation_after.png
       hash: md5
-      md5: 6f3f4b208f1569f8908b5ade1de9a35c
-      size: 196524
+      md5: fa56a76b9b4623d6ed2d6527baaf4722
+      size: 215941
     - path: dvc_plots/heatmap_correlation_before.png
       hash: md5
-      md5: e2fc22c06d8c2a34066ab1d607d467de
-      size: 224705
+      md5: 9fe87f07c08b278e570ef56061ae2782
+      size: 247209
   train:
     cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
       data/featureselection.csv --output-model-file model/help_model.keras 
@@ -84,12 +83,12 @@ stages:
     deps:
     - path: data/featureselection.csv
       hash: md5
-      md5: 4c50af9659a322a5a507f4a5576735dd
-      size: 748621
+      md5: a115a653536a08594150bf50c731c353
+      size: 799026
     - path: src/train.py
       hash: md5
-      md5: 9456deb598c5aab13049a34f55a6213d
-      size: 22469
+      md5: e03d0d0420c8042bc8b9dbad7209c8f6
+      size: 22864
     params:
       params.yaml:
         model.dropout_value: 0.5
@@ -116,20 +115,20 @@ stages:
       size: 76772
     - path: metrics/plots.csv
       hash: md5
-      md5: 77ac6141ef9fce3932002ae6caad5769
-      size: 36297
+      md5: ee0a51de94a53fea8cbd89da5258065f
+      size: 23557
     - path: metrics/scores.json
       hash: md5
-      md5: 25be20852546d1202fd3df069a89611a
-      size: 244
+      md5: 48e9564ed4a78d2ce3cab8d16f451685
+      size: 307
     - path: model/help_model.keras
       hash: md5
-      md5: e9a8a4ac40dc96b16cb8b0757920913d
-      size: 25631926
+      md5: dfe90244daec86d7f31956824ff2517d
+      size: 25631948
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 4667284eaed2c09b6500257d1f05a6eb
-      size: 8574831
+      md5: 1b8fe258a1f9509ada0463f2f0a2d812
+      size: 8574852
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
@@ -177,3 +176,47 @@ stages:
       hash: md5
       md5: f487ad66493cfbafffd554ce850ff1f6
       size: 356716
+  attentionheatmap:
+    cmd: python3 src/generate_attention_heatmap.py --params-file params.yaml 
+      --input-csv-file data/featureselection.csv --model-file 
+      model/help_model.keras --sequence-index 0 --output-dir images 
+      --heatmap-file-name attention_heatmap.png --model-diagram-name 
+      model_lstm_attention.png --save-attention-csv metrics/test_attention.csv
+    deps:
+    - path: data/featureselection.csv
+      hash: md5
+      md5: a115a653536a08594150bf50c731c353
+      size: 799026
+    - path: model/help_model.keras
+      hash: md5
+      md5: dfe90244daec86d7f31956824ff2517d
+      size: 25631948
+    - path: params.yaml
+      hash: md5
+      md5: 143971804e72667119201d17daf82579
+      size: 1048
+    - path: src/generate_attention_heatmap.py
+      hash: md5
+      md5: 6ae2220a24d9f4fe80b07a0ed7b184f2
+      size: 12616
+    - path: src/keras_custom_layers.py
+      hash: md5
+      md5: 83699196eb852a6200f09ba4cbb0cf44
+      size: 5158
+    - path: src/train.py
+      hash: md5
+      md5: e03d0d0420c8042bc8b9dbad7209c8f6
+      size: 22864
+    outs:
+    - path: images/attention_heatmap.png
+      hash: md5
+      md5: 5a53abb693d6b897881ec3507c57c71a
+      size: 233579
+    - path: images/model_lstm_attention.png
+      hash: md5
+      md5: 2b9fefb3e74fee6a232c488feeff2498
+      size: 337492
+    - path: metrics/test_attention.csv
+      hash: md5
+      md5: 67e7f18ab8cb1d73c064617465899610
+      size: 2277

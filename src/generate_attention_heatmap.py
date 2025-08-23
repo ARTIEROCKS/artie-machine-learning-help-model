@@ -147,18 +147,27 @@ def save_attention_csv(attention_weights: np.ndarray, valid_mask: np.ndarray, cs
     df.to_csv(csv_path, index=False)
 
 
-def generate_model_diagram(model_path: str, output_path: str):
-    """Load the full model and attempt to plot its architecture diagram.
-    If Graphviz / pydot are missing, a warning is logged instead of raising.
+def generate_model_diagram(model: tf.keras.Model, output_path: str):
+    """Generate (and always create) an architecture diagram PNG.
+    Tries keras.utils.plot_model; if it fails (e.g., missing pydot/graphviz or custom layer issues),
+    creates a placeholder figure so downstream DVC expects file presence.
     """
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     try:
-        model = tf.keras.models.load_model(model_path, compile=False)
         from tensorflow.keras.utils import plot_model
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plot_model(model, to_file=output_path, dpi=200, show_shapes=True, show_layer_names=True)
         print(f"Model diagram saved to {output_path}")
+        return
     except Exception as e:
-        print(f"WARNING: Could not generate model diagram: {e}")
+        print(f"WARNING: Could not generate detailed model diagram: {e}. Creating placeholder image.")
+    # Fallback placeholder
+    plt.figure(figsize=(4, 2))
+    plt.text(0.5, 0.5, 'Model diagram not available', ha='center', va='center', fontsize=10)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=200)
+    plt.close()
+    print(f"Placeholder model diagram saved to {output_path}")
 
 
 def main():
@@ -251,7 +260,7 @@ def main():
 
     # 10. Diagrama modelo
     model_diagram_path = os.path.join(args.output_dir, args.model_diagram_name)
-    generate_model_diagram(args.model_file, model_diagram_path)
+    generate_model_diagram(full_model, model_diagram_path)
 
     print("Done.")
 
