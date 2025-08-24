@@ -156,13 +156,54 @@ def analyze_feature_importance_shap(df, target_column, drop_columns=None, output
         'model': model
     }
 
+def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='date_time',
+                                        output_path='data/time_steps_analysis.csv',
+                                        date_format='%Y-%m-%d', sep=';'):
+    """
+    Computes the number of time_steps per group_id and day and saves it to a CSV.
+
+    time_steps = number of rows sharing the same group_id and the same date_time formatted as yyyy-mm-dd.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        group_col (str): Column name containing the group_id.
+        datetime_col (str): Column name containing the timestamp (date_time).
+        output_path (str): Output CSV path (default 'data/time_steps_analysis.csv').
+        date_format (str): Date format for daily aggregation.
+        sep (str): CSV separator (default ';').
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ['group_id', 'date', 'time_steps'].
+    """
+    # Basic column validation
+    if group_col not in df.columns or datetime_col not in df.columns:
+        print(f"Warning: columnas '{group_col}' y/o '{datetime_col}' no encontradas en el DataFrame.")
+        return pd.DataFrame(columns=['group_id', 'date', 'time_steps'])
+
+    tmp = df[[group_col, datetime_col]].copy()
+    tmp[datetime_col] = pd.to_datetime(tmp[datetime_col], errors='coerce')
+    tmp = tmp.dropna(subset=[datetime_col])
+
+    # Extract date using the required format
+    tmp['date'] = tmp[datetime_col].dt.strftime(date_format)
+
+    # Group and count
+    summary = tmp.groupby([group_col, 'date']).size().reset_index(name='time_steps')
+
+    # Save to CSV using ';' as separator
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    summary.to_csv(output_path, index=False, sep=sep)
+
+    print(f"Time steps analysis guardado en: {output_path} (filas: {len(summary)})")
+    return summary
+
 
 
 if __name__ == "__main__":
 
     # Check command-line arguments
     if len(sys.argv) < 3:
-        print("Usage: python data_analysis.py <params_file> <input_csv_file> [output_class_image] [output_class_csv] [shap_analysis_flag]")
+        print("Usage: python data_analysis.py <params_file> <input_csv_file> [output_class_image] [output_class_csv] [output_time_steps_csv]")
         sys.exit(1)
 
     # Loading the parameters
@@ -186,6 +227,10 @@ if __name__ == "__main__":
     df = df.reset_index(drop=True)
 
     print(f"Total rows after the filter: {len(df)}")
+
+    # Compute time steps per group_id and day
+    output_time_steps_csv = sys.argv[5] if len(sys.argv) > 5 else "data/time_steps_analysis.csv"
+    compute_time_steps_by_group_and_day(df, output_path=output_time_steps_csv)
 
     # Analyze class distribution
     summary = plot_class_distribution(
