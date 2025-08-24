@@ -72,7 +72,7 @@ def getfirstaction(interventions):
 # Function to write the software interventions in csv format
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     row_list = []
-    row_list.append(['student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
+    row_list.append(['group_id', 'date_time', 'student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
                      'student_motivation', 'exercise_skill_parallelism', 'exercise_skill_logical_thinking',
                      'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
                      'exercise_skill_information_representation',
@@ -120,6 +120,9 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         exercise_id = None
         last_login = None
 
+        date_time = None
+        group_id = None
+
         if 'student' in element:
             if '_id' in element['student']:
                 student_id = element['student']['_id']
@@ -140,6 +143,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                     first_action = first_actions[key]
                     difference = (date_time_obj - first_action)
                     total_seconds = difference.total_seconds()
+                    date_time = date_time_obj
+                    group_id = f"{student_id}_{exercise_id}"
 
         # Student information
         if 'student' in element:
@@ -208,7 +213,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
             tree_grade = element['treeGrade']
 
         # Creating the row of the csv
-        row_list.append([student_sex, student_mother_tongue, student_age, student_competence,
+        row_list.append([group_id, date_time, student_sex, student_mother_tongue, student_age, student_competence,
                          student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                          exercise_skill_flow_control, exercise_skill_user_interactivity,
                          exercise_skill_information_representation,

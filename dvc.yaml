@@ -14,15 +14,6 @@ stages:
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
-  transformationdr:
-    cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
-      data/pedagogicalinterventions_datarobot.csv
-    deps:
-    - data/pedagogicalinterventions.json
-    - src/formatcsv.py
-    outs:
-    - data/pedagogicalinterventions_datarobot.csv
-    frozen: true
   dataanalysis:
     cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv
       dvc_plots/class_distribution.png data/class_distribution_summary.csv

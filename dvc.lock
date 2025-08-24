@@ -21,13 +21,13 @@ stages:
       size: 23147121
     - path: src/formatcsv.py
       hash: md5
-      md5: 971f18c806926bb92a03b99dc6e5d2b8
-      size: 10626
+      md5: 7bb5d64d2e0ebcc910e185754f529251
+      size: 10828
     outs:
     - path: data/pedagogicalinterventions.csv
       hash: md5
-      md5: 9072cef41eeac68902bc88064fa50b31
-      size: 2134588
+      md5: d00d95508ed3842a39dd1c9cb5344326
+      size: 3606733
   featureselection:
     cmd: python3 src/featureselection.py params.yaml 
       data/pedagogicalinterventions.csv data/featureselection.csv 
