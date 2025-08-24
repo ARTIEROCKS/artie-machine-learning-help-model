@@ -52,8 +52,9 @@ heatmap_correlation_path_after = params['selection']['heatmap_correlation_path_a
 df, df_filtered = load(input_csv_file, drop_columns)
 
 if method == 'filter':
-    # Using Pearson Correlation
-    cor = df_filtered.corr(method='pearson')
+    # Using Pearson Correlation (numeric columns only to avoid string-to-float errors)
+    numeric_df = df_filtered.select_dtypes(include=[np.number, 'bool'])
+    cor = numeric_df.corr(method='pearson')
     cor_tri = cor.abs().where(np.triu(np.ones(cor.shape), k=1).astype(bool))
     selected_features = filter_method(cor_tri, target, number_of_features)
     selected_features_columns = list(selected_features.to_dict().keys())
