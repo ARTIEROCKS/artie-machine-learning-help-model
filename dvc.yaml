@@ -25,6 +25,7 @@ stages:
       - dvc_plots/shap_feature_importance_beeswarm.png
       - dvc_plots/shap_feature_importance_waterfall.png
       - data/shap_feature_importance.csv
+      - data/time_steps_analysis.csv
   featureselection:
     cmd: python3 src/featureselection.py params.yaml 
       data/pedagogicalinterventions.csv data/featureselection.csv 
@@ -49,6 +50,7 @@ stages:
       --metrics-file-name metrics/scores.json --use-gpu --output-dir images
     deps:
     - data/featureselection.csv
+    - data/time_steps_analysis.csv
     - src/train.py
     params:
     - model.dropout_value

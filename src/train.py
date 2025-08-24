@@ -28,32 +28,28 @@ np.random.seed(1)
 # Function to load the csv file
 def load(file):
 
-  # Reads the csv file
-  df = pd.read_csv(file, delimiter=',')
+  # Reads the csv file (robust to different separators)
+  try:
+    df = pd.read_csv(file)
+  except Exception:
+    try:
+      df = pd.read_csv(file, sep=None, engine='python')  # auto-detect separator
+    except Exception:
+      df = pd.read_csv(file, sep=';')  # final fallback for semicolon-separated files
   columns = len(df.columns) - 1
+
+  # Read max_time_steps from precomputed analysis
   max_time_steps = 1
-  last_step_seconds = -1
-  current_time_steps = 0
+  try:
+    ts_path = os.path.join('data', 'time_steps_analysis.csv')
+    if os.path.exists(ts_path):
+      ts_df = pd.read_csv(ts_path)
+      if 'time_steps' in ts_df.columns and not ts_df.empty:
+        max_time_steps = int(ts_df['time_steps'].max())
+  except Exception as e:
+    print(f"Warning: could not read time steps analysis file: {e}. Falling back to default max_time_steps=1")
 
-  # Reading all the rows
-  for index, row in df.iterrows():
-
-    # Get the "time" of the current row
-    current_seconds = df["total_seconds"][index]
-
-    # If the last step seconds is greater than the current one, we
-    if last_step_seconds > current_seconds:
-      current_time_steps = 0
-
-    current_time_steps += 1
-
-    # If the current time steps are greater than the max, we set the max time steps
-    if current_time_steps > max_time_steps:
-      max_time_steps = current_time_steps
-
-    last_step_seconds = current_seconds
-
-  return df,max_time_steps,columns
+  return df, max_time_steps, columns
 
 
 # Function to create the padding and the masking
@@ -84,18 +80,85 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     df = df[pd.to_numeric(df['student_age'], errors='coerce').notna()]
     # Reset index after filtering to ensure proper alignment
     df = df.reset_index(drop=True)
-    # Determines the columns to drop
-    apted_columns = ["request_help", "apted_distance", "tree_grade"]
-    artie_columns = ["request_help", "solution_distance_family_distance", "solution_distance_element_distance",
-                     "solution_distance_position_distance", "solution_distance_input_distance",
-                     "solution_distance_total_distance", "grade"]
+
+    # Determine columns to drop from features (label + distance set + grouping columns)
+    apted_columns = ["group_id","date_time","request_help", "apted_distance", "tree_grade"]
+    artie_columns = ["group_id","date_time","request_help", "solution_distance_family_distance",
+                     "solution_distance_element_distance", "solution_distance_position_distance",
+                     "solution_distance_input_distance", "solution_distance_total_distance", "grade"]
+
     if distance_calculation_type.lower() == 'artie':
-        cols_to_drop = [col for col in apted_columns if col in df.columns]
+        base_drop = [col for col in apted_columns if col in df.columns]
     else:
-        cols_to_drop = [col for col in artie_columns if col in df.columns]
-    # Removes the columns that we do not need
-    df_X = df.drop(axis=1, columns=cols_to_drop)
-    # Updates the columns
+        base_drop = [col for col in artie_columns if col in df.columns]
+
+    # Always drop grouping columns from features
+    for col in ['group_id', 'date_time']:
+        if col not in base_drop and col in df.columns:
+            base_drop.append(col)
+
+    # If grouping columns exist, group by group_id + date (yyyy-mm-dd)
+    if 'group_id' in df.columns and 'date_time' in df.columns:
+        df_work = df.copy()
+        # Build date column
+        df_work['__date'] = pd.to_datetime(df_work['date_time'], errors='coerce').dt.strftime('%Y-%m-%d')
+        df_work = df_work.dropna(subset=['__date'])
+
+        # Sort for deterministic ordering within sequences
+        if 'total_seconds' in df_work.columns:
+            df_work = df_work.sort_values(by=['group_id', '__date', 'total_seconds']).reset_index(drop=True)
+        else:
+            df_work = df_work.sort_values(by=['group_id', '__date']).reset_index(drop=True)
+
+        sample_x = None
+        sample_y = None
+
+        # Iterate groups and build sequences
+        for (gid, dstr), gdf in df_work.groupby(['group_id', '__date'], sort=False):
+            # Prepare features X and labels y for this group
+            df_y = gdf["request_help"].to_numpy().reshape(-1, 1)
+
+            # Drop columns not used for features
+            cols_to_drop = [c for c in base_drop if c in gdf.columns]
+            if '__date' in gdf.columns:
+                cols_to_drop.append('__date')
+            df_X = gdf.drop(columns=cols_to_drop, axis=1, errors='ignore')
+
+            # Keep ordering as in gdf (already sorted)
+            X = df_X.to_numpy()
+            y = df_y
+
+            # Update feature dimension
+            columns = df_X.shape[1]
+
+            # Truncate or pad to max_time_steps
+            if X.shape[0] > max_time_steps:
+                X = X[:max_time_steps, :]
+                y = y[:max_time_steps, :]
+            elif X.shape[0] < max_time_steps:
+                X, y = padding_masking(X, y, max_time_steps, columns, mask_value)
+
+            # Accumulate samples
+            X = np.array([X])
+            y = np.array([y])
+            if sample_x is None:
+                sample_x = X
+                sample_y = y
+            else:
+                sample_x = np.vstack([sample_x, X])
+                sample_y = np.vstack([sample_y, y])
+
+        # Compute train/test split
+        train_size = math.floor(sample_x.shape[0] * percentage_train / 100)
+        train_x = sample_x[:train_size]
+        train_y = sample_y[:train_size]
+        test_x = sample_x[train_size + 1:]
+        test_y = sample_y[train_size + 1:]
+
+        return df, train_x, train_y, test_x, test_y
+
+    # Fallback: if grouping columns are missing, use previous time reset logic
+    df_X = df.drop(axis=1, columns=[c for c in base_drop if c in df.columns])
     columns = df_X.shape[1]
     df_y = df["request_help"]
     last_step_seconds = -1
@@ -104,18 +167,14 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     sample_x = None
     sample_y = None
     for index, row in df_X.iterrows():
-        current_seconds = df_X["total_seconds"][index]
-        # If the time steps of x is none, we create a new np array
+        current_seconds = df_X["total_seconds"][index] if "total_seconds" in df_X.columns else index
         if time_steps_x is None:
             time_steps_x = np.array([row])
             time_steps_y = np.array([df_y.iloc[[index]]])
         else:
             time_steps_x = np.vstack([time_steps_x, row])
             time_steps_y = np.vstack([time_steps_y, df_y.iloc[[index]]])
-        # If the last step seconds are greater than the current seconds
-        # we add a new sample block
         if last_step_seconds > current_seconds:
-            # We complete the time series with the maximum and the number of columns
             time_steps_x, time_steps_y = padding_masking(time_steps_x, time_steps_y, max_time_steps, columns, mask_value)
             if sample_x is None:
                 sample_x = np.array([time_steps_x])
@@ -125,9 +184,8 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
                 sample_y = np.vstack([sample_y, [time_steps_y]])
             time_steps_x = None
             time_steps_y = None
-        # We get the current seconds as the new last step seconds
         last_step_seconds = current_seconds
-    # We calculate the train size in base of the percentage
+
     train_size = math.floor(sample_x.shape[0] * percentage_train / 100)
     train_x = sample_x[:train_size]
     train_y = sample_y[:train_size]

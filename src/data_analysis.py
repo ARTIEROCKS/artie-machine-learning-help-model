@@ -158,7 +158,7 @@ def analyze_feature_importance_shap(df, target_column, drop_columns=None, output
 
 def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='date_time',
                                         output_path='data/time_steps_analysis.csv',
-                                        date_format='%Y-%m-%d', sep=';'):
+                                        date_format='%Y-%m-%d', sep=','):
     """
     Computes the number of time_steps per group_id and day and saves it to a CSV.
 
@@ -170,7 +170,7 @@ def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='
         datetime_col (str): Column name containing the timestamp (date_time).
         output_path (str): Output CSV path (default 'data/time_steps_analysis.csv').
         date_format (str): Date format for daily aggregation.
-        sep (str): CSV separator (default ';').
+        sep (str): CSV separator (default ',').
 
     Returns:
         pd.DataFrame: DataFrame with columns ['group_id', 'date', 'time_steps'].
@@ -190,7 +190,7 @@ def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='
     # Group and count
     summary = tmp.groupby([group_col, 'date']).size().reset_index(name='time_steps')
 
-    # Save to CSV using ';' as separator
+    # Save to CSV using ',' as separator
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     summary.to_csv(output_path, index=False, sep=sep)
 

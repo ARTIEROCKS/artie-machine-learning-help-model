@@ -35,11 +35,12 @@ stages:
     deps:
     - path: data/pedagogicalinterventions.csv
       hash: md5
-      md5: ba92715d39a4980a3b3da31991f01a3c
-      size: 1294098
+      md5: d00d95508ed3842a39dd1c9cb5344326
+      size: 3606733
     - path: src/featureselection.py
-      md5: 75937019d6ecbc4b14aa030f9e09f338
-      size: 3427
+      hash: md5
+      md5: 6a3296e56840a0d726f354b91e8889e7
+      size: 3553
     params:
       params.yaml:
         selection.drop_columns:
@@ -61,20 +62,20 @@ stages:
     outs:
     - path: data/featureselection.csv
       hash: md5
-      md5: a115a653536a08594150bf50c731c353
-      size: 799026
+      md5: 9dd60180234b23a740e52d10f0a586c6
+      size: 1376354
     - path: data/selectedfeatures.csv
       hash: md5
-      md5: 6f6cd2f6751acc5e24863d3d73744e13
-      size: 340
+      md5: f4f724016002253d0d509d096d51adb5
+      size: 382
     - path: dvc_plots/heatmap_correlation_after.png
       hash: md5
-      md5: fa56a76b9b4623d6ed2d6527baaf4722
-      size: 215941
+      md5: ac0019cfb36a0a82f85d1f39c7ab5b58
+      size: 257733
     - path: dvc_plots/heatmap_correlation_before.png
       hash: md5
-      md5: 9fe87f07c08b278e570ef56061ae2782
-      size: 247209
+      md5: 920400f8f7fa9ef039a5e261d8224b2c
+      size: 252928
   train:
     cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
       data/featureselection.csv --output-model-file model/help_model.keras 
@@ -157,21 +158,25 @@ stages:
       size: 3606733
     - path: src/data_analysis.py
       hash: md5
-      md5: c017ce7e545b6ff7fcfb2e1d15a05989
+      md5: 157a58ef4dfb945b2c82fde33254155c
       size: 9798
     outs:
     - path: data/shap_feature_importance.csv
       hash: md5
       md5: b8037c2a05c7addc36a39eb1efe9ff0b
       size: 704
+    - path: data/time_steps_analysis.csv
+      hash: md5
+      md5: b985239fbc44d600df813aabb5c18d6a
+      size: 18862
     - path: dvc_plots/shap_feature_importance_bar.png
       hash: md5
       md5: f555d4a007c713184ddfa15ae8a34b46
       size: 320567
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 0395529fcfee7203e9d634cadfb26f01
-      size: 481943
+      md5: 4489c72a361825367f3d90eac61a26f0
+      size: 483683
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
       md5: 47a61873fae7c1a9c559ad1d66af25fd
