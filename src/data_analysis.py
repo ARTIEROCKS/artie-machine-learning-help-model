@@ -163,6 +163,7 @@ def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='
     Computes the number of time_steps per group_id and day and saves it to a CSV.
 
     time_steps = number of rows sharing the same group_id and the same date_time formatted as yyyy-mm-dd.
+    request_help_count = number of rows with request_help == 1 for the same group_id and date.
 
     Args:
         df (pd.DataFrame): Input DataFrame.
@@ -173,22 +174,36 @@ def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='
         sep (str): CSV separator (default ',').
 
     Returns:
-        pd.DataFrame: DataFrame with columns ['group_id', 'date', 'time_steps'].
+        pd.DataFrame: DataFrame with columns ['group_id', 'date', 'time_steps', 'request_help_count'].
     """
     # Basic column validation
     if group_col not in df.columns or datetime_col not in df.columns:
         print(f"Warning: columnas '{group_col}' y/o '{datetime_col}' no encontradas en el DataFrame.")
-        return pd.DataFrame(columns=['group_id', 'date', 'time_steps'])
+        return pd.DataFrame(columns=['group_id', 'date', 'time_steps', 'request_help_count'])
 
-    tmp = df[[group_col, datetime_col]].copy()
+    # Keep only needed columns and build date column
+    if 'request_help' in df.columns:
+        tmp = df[[group_col, datetime_col, 'request_help']].copy()
+    else:
+        tmp = df[[group_col, datetime_col]].copy()
+        tmp['request_help'] = 0  # safe default if column is missing
+
     tmp[datetime_col] = pd.to_datetime(tmp[datetime_col], errors='coerce')
     tmp = tmp.dropna(subset=[datetime_col])
 
     # Extract date using the required format
     tmp['date'] = tmp[datetime_col].dt.strftime(date_format)
 
-    # Group and count
-    summary = tmp.groupby([group_col, 'date']).size().reset_index(name='time_steps')
+    # Ensure request_help is numeric (0/1) before aggregation
+    tmp['request_help_num'] = pd.to_numeric(tmp['request_help'], errors='coerce').fillna(0).astype(int)
+
+    # Group and aggregate: time_steps (size) and request_help_count (sum of request_help==1)
+    summary = (
+        tmp.groupby([group_col, 'date'])
+           .agg(time_steps=('request_help_num', 'size'),
+                request_help_count=('request_help_num', 'sum'))
+           .reset_index()
+    )
 
     # Save to CSV using ',' as separator
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
