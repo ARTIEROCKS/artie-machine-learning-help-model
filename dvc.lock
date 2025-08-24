@@ -153,8 +153,8 @@ stages:
     deps:
     - path: data/pedagogicalinterventions.csv
       hash: md5
-      md5: ba92715d39a4980a3b3da31991f01a3c
-      size: 1294098
+      md5: 9072cef41eeac68902bc88064fa50b31
+      size: 2134588
     - path: src/data_analysis.py
       hash: md5
       md5: 3d70c6b1d4cba55989ee3285ac5270a8
@@ -162,20 +162,20 @@ stages:
     outs:
     - path: data/shap_feature_importance.csv
       hash: md5
-      md5: 479c8ff497e4be984f3fc3db33ee3478
-      size: 675
+      md5: b8037c2a05c7addc36a39eb1efe9ff0b
+      size: 704
     - path: dvc_plots/shap_feature_importance_bar.png
       hash: md5
-      md5: bdd3293bac9d5332ef65a020cb3657ac
-      size: 312853
+      md5: f555d4a007c713184ddfa15ae8a34b46
+      size: 320567
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 33b94c9d99b45c6de167d9db593c0583
-      size: 471192
+      md5: 3fdee317110ef3dd836de380a8d86dfb
+      size: 480498
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
-      md5: f487ad66493cfbafffd554ce850ff1f6
-      size: 356716
+      md5: 47a61873fae7c1a9c559ad1d66af25fd
+      size: 366005
   attentionheatmap:
     cmd: python3 src/generate_attention_heatmap.py --params-file params.yaml 
       --input-csv-file data/featureselection.csv --model-file 
