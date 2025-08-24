@@ -212,13 +212,66 @@ def compute_time_steps_by_group_and_day(df, group_col='group_id', datetime_col='
     print(f"Time steps analysis guardado en: {output_path} (filas: {len(summary)})")
     return summary
 
+def compute_time_steps_means(df, group_col='group_id', datetime_col='date_time',
+                             output_path='data/time_steps_mean_analysis.csv',
+                             date_format='%Y-%m-%d', sep=','):
+    """
+    Computes and saves two global means across time series (grouped by group_id and date):
+      - mean_help_requests_per_time_series: average number of help requests per time series
+      - mean_time_steps_per_time_series: average number of interactions (time steps) per time series
+    """
+    # Validate required columns
+    if group_col not in df.columns or datetime_col not in df.columns:
+        print(f"Warning: columnas '{group_col}' y/o '{datetime_col}' no encontradas en el DataFrame.")
+        # Save empty structure to keep pipeline consistent
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        pd.DataFrame(columns=['mean_help_requests_per_time_series', 'mean_time_steps_per_time_series']) \
+          .to_csv(output_path, index=False, sep=sep)
+        return pd.DataFrame(columns=['mean_help_requests_per_time_series', 'mean_time_steps_per_time_series'])
+
+    # Prepare minimal working frame with request_help
+    if 'request_help' in df.columns:
+        tmp = df[[group_col, datetime_col, 'request_help']].copy()
+    else:
+        tmp = df[[group_col, datetime_col]].copy()
+        tmp['request_help'] = 0  # safe default if missing
+
+    # Parse datetime and derive date
+    tmp[datetime_col] = pd.to_datetime(tmp[datetime_col], errors='coerce')
+    tmp = tmp.dropna(subset=[datetime_col])
+    tmp['date'] = tmp[datetime_col].dt.strftime(date_format)
+
+    # Ensure request_help is numeric (0/1)
+    tmp['request_help_num'] = pd.to_numeric(tmp['request_help'], errors='coerce').fillna(0).astype(int)
+
+    # Aggregate per time series (group_id + date)
+    per_series = (
+        tmp.groupby([group_col, 'date'])
+           .agg(time_steps=('request_help_num', 'size'),
+                help_requests=('request_help_num', 'sum'))
+           .reset_index()
+    )
+
+    # Compute means across series
+    means_df = pd.DataFrame({
+        'mean_help_requests_per_time_series': [per_series['help_requests'].mean() if not per_series.empty else 0.0],
+        'mean_time_steps_per_time_series': [per_series['time_steps'].mean() if not per_series.empty else 0.0]
+    })
+
+    # Save to CSV
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    means_df.to_csv(output_path, index=False, sep=sep)
+
+    print(f"Time steps mean analysis saved to: {output_path}")
+    return means_df
+
 
 
 if __name__ == "__main__":
 
     # Check command-line arguments
     if len(sys.argv) < 3:
-        print("Usage: python data_analysis.py <params_file> <input_csv_file> [output_class_image] [output_class_csv] [output_time_steps_csv]")
+        print("Usage: python data_analysis.py <params_file> <input_csv_file> [output_class_image] [output_class_csv] [output_time_steps_csv] [output_time_steps_mean_csv]")
         sys.exit(1)
 
     # Loading the parameters
@@ -246,6 +299,10 @@ if __name__ == "__main__":
     # Compute time steps per group_id and day
     output_time_steps_csv = sys.argv[5] if len(sys.argv) > 5 else "data/time_steps_analysis.csv"
     compute_time_steps_by_group_and_day(df, output_path=output_time_steps_csv)
+
+    # Compute global means across time series
+    output_time_steps_mean_csv = sys.argv[6] if len(sys.argv) > 6 else "data/time_steps_mean_analysis.csv"
+    compute_time_steps_means(df, output_path=output_time_steps_mean_csv)
 
     # Analyze class distribution
     summary = plot_class_distribution(
