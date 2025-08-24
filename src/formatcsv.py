@@ -207,7 +207,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         if 'treeGrade' in element:
             tree_grade = element['treeGrade']
 
-        # Creating  the row of the csv
+        # Creating the row of the csv
         row_list.append([student_sex, student_mother_tongue, student_age, student_competence,
                          student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                          exercise_skill_flow_control, exercise_skill_user_interactivity,

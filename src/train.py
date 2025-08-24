@@ -4,7 +4,6 @@ warnings.filterwarnings("ignore", message="Layer 'lambda.*' .* does not support 
 import pandas as pd
 import numpy as np
 import math
-import sys
 import os
 import yaml
 import tensorflow as tf
@@ -18,9 +17,7 @@ from keras_custom_layers import (
     compute_mask_layer,
     squeeze_last_axis_func,
     mask_attention_scores_func,
-    apply_attention_func,
-    MaskedRepeatVector,
-    AttentionLayer
+    apply_attention_func
 )
 
 # Set seeds for reproducibility
