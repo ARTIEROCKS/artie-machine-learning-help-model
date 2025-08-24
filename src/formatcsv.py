@@ -4,6 +4,22 @@ import sys
 from datetime import datetime
 
 
+# Helper to parse dateTime values that may come with or without microseconds
+# Tries multiple known formats and returns a datetime or None if unparsable.
+# We avoid adding external dependencies (like dateutil) to keep the pipeline lightweight/reproducible.
+# Returning None (instead of raising) allows the calling code to decide whether to skip or handle missing dates.
+def parse_datetime(value):
+    if not value:
+        return None
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    # If no format matched, we silently skip; alternatively could log a warning.
+    return None
+
+
 # Function to load the json file data
 def loadjsondata(filepath):
     data = []
@@ -34,19 +50,21 @@ def getfirstaction(interventions):
             if '_id' in element['student']:
                 student_id = element['student']['_id']
         if 'dateTime' in element:
-            date_time = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
+            date_time = parse_datetime(element['dateTime'])
         if 'lastLogin' in element:
             last_login = element['lastLogin']
         if 'exercise' in element:
             if '_id' in element['exercise']:
                 exercise_id = element['exercise']['_id']
 
-        if student_id is not None and date_time is not None and last_login is not None and exercise_id is not None:
-            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
-                if date_time < first_actions[student_id + '_' + exercise_id + '_' + last_login]:
-                    first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+        if (student_id is not None and date_time is not None and
+                last_login is not None and exercise_id is not None):
+            key = f"{student_id}_{exercise_id}_{last_login}"
+            if key in first_actions:
+                if date_time < first_actions[key]:
+                    first_actions[key] = date_time
             else:
-                first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+                first_actions[key] = date_time
 
     return first_actions
 
@@ -115,10 +133,11 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
         # Time calculation between the first action of the exercise and the current action
         if student_id is not None and last_login is not None and exercise_id is not None:
-            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
-                if 'dateTime' in element:
-                    date_time_obj = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
-                    first_action = first_actions[student_id + '_' + exercise_id + '_' + last_login]
+            key = f"{student_id}_{exercise_id}_{last_login}"
+            if key in first_actions and 'dateTime' in element:
+                date_time_obj = parse_datetime(element['dateTime'])
+                if date_time_obj is not None:
+                    first_action = first_actions[key]
                     difference = (date_time_obj - first_action)
                     total_seconds = difference.total_seconds()
 
