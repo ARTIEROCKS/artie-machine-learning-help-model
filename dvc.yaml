@@ -76,6 +76,8 @@ stages:
     metrics:
     - metrics/scores.json:
         cache: false
+    - metrics/val_threshold_metrics.json:
+        cache: false
     plots:
     - metrics/plots.csv
   attentionheatmap:
