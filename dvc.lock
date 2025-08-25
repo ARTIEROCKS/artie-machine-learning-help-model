@@ -84,52 +84,56 @@ stages:
     deps:
     - path: data/featureselection.csv
       hash: md5
-      md5: a115a653536a08594150bf50c731c353
-      size: 799026
+      md5: 9dd60180234b23a740e52d10f0a586c6
+      size: 1376354
+    - path: data/time_steps_analysis.csv
+      hash: md5
+      md5: a2e44b829e841056e26e073ad9ddc252
+      size: 19514
     - path: src/train.py
       hash: md5
-      md5: e03d0d0420c8042bc8b9dbad7209c8f6
-      size: 22864
+      md5: bd5eb109408268cce5a7914d9797435f
+      size: 27905
     params:
       params.yaml:
         model.dropout_value: 0.5
-        model.initial_learning_rate: 0.1
+        model.initial_learning_rate: 0.001
         model.lstm_units: 256
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
         model.show_summary: true
-        model.training_batch_size: 8
+        model.training_batch_size: 32
         model.training_class_weights: true
         model.training_early_stopping_patience: 100
         model.training_epochs: 500
         model.training_reduce_lr_factor: 0.3
         model.training_reduce_lr_patience: 30
         model.use_attention: true
-        model.use_bidirectional: true
+        model.use_bidirectional: false
         model.use_dropouts: true
     outs:
-    - path: images/model.png
-      hash: md5
-      md5: 21848f653506f0aecd88d1ffdefb8147
-      size: 76772
     - path: metrics/plots.csv
       hash: md5
-      md5: ee0a51de94a53fea8cbd89da5258065f
-      size: 23557
+      md5: da956af52cb297f584063b83253861c4
+      size: 27217
     - path: metrics/scores.json
       hash: md5
-      md5: 48e9564ed4a78d2ce3cab8d16f451685
-      size: 307
+      md5: d31fca96c7639edea25a51c65e4137df
+      size: 459
+    - path: metrics/val_threshold_metrics.json
+      hash: md5
+      md5: dae510eaf8fd904b8b17cd9a93657a6b
+      size: 19942
     - path: model/help_model.keras
       hash: md5
-      md5: dfe90244daec86d7f31956824ff2517d
-      size: 25631948
+      md5: 494dd24218edf73bf9529f619feede92
+      size: 3401359
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 1b8fe258a1f9509ada0463f2f0a2d812
-      size: 8574852
+      md5: 6ca88a0a343f96b775a4c602072b9632
+      size: 1150949
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
@@ -190,16 +194,16 @@ stages:
     deps:
     - path: data/featureselection.csv
       hash: md5
-      md5: a115a653536a08594150bf50c731c353
-      size: 799026
+      md5: 9dd60180234b23a740e52d10f0a586c6
+      size: 1376354
     - path: model/help_model.keras
       hash: md5
-      md5: dfe90244daec86d7f31956824ff2517d
-      size: 25631948
+      md5: 494dd24218edf73bf9529f619feede92
+      size: 3401359
     - path: params.yaml
       hash: md5
-      md5: 143971804e72667119201d17daf82579
-      size: 1048
+      md5: ad07ddf2ab45b0e375699a522ee25ea9
+      size: 1053
     - path: src/generate_attention_heatmap.py
       hash: md5
       md5: 6ae2220a24d9f4fe80b07a0ed7b184f2
@@ -210,18 +214,10 @@ stages:
       size: 5158
     - path: src/train.py
       hash: md5
-      md5: e03d0d0420c8042bc8b9dbad7209c8f6
-      size: 22864
+      md5: bd5eb109408268cce5a7914d9797435f
+      size: 27905
     outs:
-    - path: images/attention_heatmap.png
-      hash: md5
-      md5: 5a53abb693d6b897881ec3507c57c71a
-      size: 233579
-    - path: images/model_lstm_attention.png
-      hash: md5
-      md5: 2b9fefb3e74fee6a232c488feeff2498
-      size: 337492
     - path: metrics/test_attention.csv
       hash: md5
-      md5: 67e7f18ab8cb1d73c064617465899610
-      size: 2277
+      md5: 1ee71f97fa95b60bf1e102d9afdd84a3
+      size: 3464
