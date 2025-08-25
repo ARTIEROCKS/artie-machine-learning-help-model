@@ -559,6 +559,11 @@ if __name__ == "__main__":
 
     if history.history:
         # existing code above already created hist_df and metrics_data; we patch where metrics_data is assembled
+        # Save per-epoch history to plots file (required by DVC)
+        try:
+            hist_df.to_csv(plots_file_name, index_label='epoch')
+        except Exception as e:
+            print(f"Could not write plots CSV {plots_file_name}: {e}")
         metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
         if 'precision' in hist_df:
             metrics_data['precision'] = hist_df['precision'].mean()
