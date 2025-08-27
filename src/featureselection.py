@@ -6,6 +6,7 @@ import csv
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os  # Added for ensuring output directories
 
 
 def load(file, columns_to_delete):
@@ -33,11 +34,14 @@ def drop_high_correlated(cor, selected_features, limit):
     return to_drop
 
 
-params_file = sys.argv[1]
-input_csv_file = sys.argv[2]
-output_csv_file = sys.argv[3]
-output_selected_columns_file = sys.argv[4]
+params_file = sys.argv[1].strip()
+input_csv_file = sys.argv[2].strip()
+output_csv_file = sys.argv[3].strip()
+output_selected_columns_file = sys.argv[4].strip()
 
+# Ensure parent directories exist (robust against accidental missing folders)
+os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
+os.makedirs(os.path.dirname(output_selected_columns_file), exist_ok=True)
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
 
