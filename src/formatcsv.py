@@ -1,6 +1,7 @@
 import csv
 import json
 import sys
+import os  # Added for directory creation
 from datetime import datetime
 
 
@@ -228,8 +229,14 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     return row_list
 
 
-# 1- Gets the json data
-data = loadjsondata(sys.argv[1])
+# 1- Gets the json data (sanitize incoming CLI args to avoid leading/trailing spaces from YAML line breaks)
+input_json_path = sys.argv[1].strip()
+output_csv_path = sys.argv[2].strip()
+
+# Ensure parent directory for output exists (robust if 'data' missing)
+os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+
+data = loadjsondata(input_json_path)
 
 # 2- Get the first action of each exercise
 actions = getfirstaction(data)
@@ -238,6 +245,6 @@ actions = getfirstaction(data)
 rowList = writepedagogicalsoftwareinterventionscsv(data, actions)
 
 # 4- Writing the csv file
-with open(sys.argv[2], 'w', newline='') as file:
+with open(output_csv_path, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerows(rowList)
