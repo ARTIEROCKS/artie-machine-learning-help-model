@@ -270,17 +270,17 @@ def compute_time_steps_means(df, group_col='group_id', datetime_col='date_time',
 if __name__ == "__main__":
 
     # Check command-line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python data_analysis.py <params_file> <input_csv_file> [output_class_image] [output_class_csv] [output_time_steps_csv] [output_time_steps_mean_csv]")
+    if len(sys.argv) < 5:
+        print("Usage: python data_analysis.py <params_file> <input_csv_file> <output_class_image> <output_class_csv> [output_time_steps_csv] [output_time_steps_mean_csv]")
         sys.exit(1)
 
-    # Loading the parameters
-    params_file = sys.argv[1]
-    input_csv_file = sys.argv[2]
+    # Loading the parameters (strip to remove accidental leading spaces)
+    params_file = sys.argv[1].strip()
+    input_csv_file = sys.argv[2].strip()
 
-    # Optional arguments
-    output_class_distribution_image = sys.argv[3]
-    output_class_distribution_summary = sys.argv[4]
+    # Required output arguments
+    output_class_distribution_image = sys.argv[3].strip()
+    output_class_distribution_summary = sys.argv[4].strip()
 
     # Load dataset
     df = pd.read_csv(input_csv_file)
@@ -297,11 +297,11 @@ if __name__ == "__main__":
     print(f"Total rows after the filter: {len(df)}")
 
     # Compute time steps per group_id and day
-    output_time_steps_csv = sys.argv[5] if len(sys.argv) > 5 else "data/time_steps_analysis.csv"
+    output_time_steps_csv = sys.argv[5].strip() if len(sys.argv) > 5 else "data/time_steps_analysis.csv"
     compute_time_steps_by_group_and_day(df, output_path=output_time_steps_csv)
 
     # Compute global means across time series
-    output_time_steps_mean_csv = sys.argv[6] if len(sys.argv) > 6 else "data/time_steps_mean_analysis.csv"
+    output_time_steps_mean_csv = sys.argv[6].strip() if len(sys.argv) > 6 else "data/time_steps_mean_analysis.csv"
     compute_time_steps_means(df, output_path=output_time_steps_mean_csv)
 
     # Analyze class distribution
