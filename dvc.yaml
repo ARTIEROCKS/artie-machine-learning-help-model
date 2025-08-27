@@ -1,22 +1,19 @@
 stages:
   download:
-    cmd: python3 src/download.py data localhost 27017 artie_u ArtieU123 artie
+    cmd: python3 src/download.py data
     deps:
     - src/download.py
     outs:
     - data/pedagogicalinterventions.json
-    frozen: true
   transformation:
-    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json 
-      data/pedagogicalinterventions.csv
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
     deps:
     - data/pedagogicalinterventions.json
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
   dataanalysis:
-    cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv
-      dvc_plots/class_distribution.png data/class_distribution_summary.csv
+    cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv dvc_plots/class_distribution.png data/class_distribution_summary.csv
     deps:
       - data/pedagogicalinterventions.csv
       - src/data_analysis.py
@@ -27,9 +24,7 @@ stages:
       - data/shap_feature_importance.csv
       - data/time_steps_analysis.csv
   featureselection:
-    cmd: python3 src/featureselection.py params.yaml 
-      data/pedagogicalinterventions.csv data/featureselection.csv 
-      data/selectedfeatures.csv
+    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv data/featureselection.csv data/selectedfeatures.csv
     deps:
     - data/pedagogicalinterventions.csv
     - src/featureselection.py
@@ -45,9 +40,7 @@ stages:
     - dvc_plots/heatmap_correlation_after.png
     - dvc_plots/heatmap_correlation_before.png
   train:
-    cmd: python3 src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv 
-      --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv 
-      --metrics-file-name metrics/scores.json --use-gpu --output-dir images
+    cmd: python3 src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv --metrics-file-name metrics/scores.json --use-gpu --output-dir images
     deps:
     - data/featureselection.csv
     - data/time_steps_analysis.csv
