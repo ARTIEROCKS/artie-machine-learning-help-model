@@ -1,76 +1,72 @@
 #!/usr/bin/python
-import datetime
-import json
 import os
 import sys
-from pymongo import MongoClient
-from bson import ObjectId
+import zipfile
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+
+# Constants
+S3_URI = 's3://artie-datasets/pedagogicalinterventions.json.zip'
+EXPECTED_JSON_NAME = 'pedagogicalinterventions.json'
+ZIP_NAME = EXPECTED_JSON_NAME + '.zip'
 
 
-def converter(o):
-    if isinstance(o, datetime.datetime):
-        return o.__str__()
-    if isinstance(o, ObjectId):
-        return str(o)
+def main():
+    if len(sys.argv) != 2:
+        sys.stderr.write('Usage: python download.py <output_directory>\n')
+        sys.exit(1)
+
+    output_dir = sys.argv[1]
+
+    bucket, key = S3_URI.replace('s3://', '').split('/', 1)
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    zip_local_path = os.path.join(output_dir, ZIP_NAME)
+    json_local_path = os.path.join(output_dir, EXPECTED_JSON_NAME)
+
+    # Idempotent: skip if JSON already present
+    if os.path.isfile(json_local_path):
+        print(f'{EXPECTED_JSON_NAME} already present. Skipping download.')
+        return
+
+    s3 = boto3.client('s3')
+    try:
+        print(f'Downloading {key} from bucket {bucket} ...')
+        s3.download_file(bucket, key, zip_local_path)
+    except (ClientError, NoCredentialsError) as e:
+        sys.stderr.write(f'Failed to download {key} from {bucket}: {e}\n')
+        sys.exit(1)
+
+    try:
+        print('Extracting zip...')
+        with zipfile.ZipFile(zip_local_path, 'r') as zf:
+            target_member = None
+            for member in zf.namelist():
+                if member.endswith(EXPECTED_JSON_NAME):
+                    target_member = member
+                    break
+            if not target_member:
+                sys.stderr.write(f'Zip file does not contain {EXPECTED_JSON_NAME}\n')
+                sys.exit(1)
+            zf.extract(target_member, output_dir)
+            extracted_path = os.path.join(output_dir, target_member)
+            if extracted_path != json_local_path:
+                # Move file out of any nested folder inside the zip
+                os.replace(extracted_path, json_local_path)
+        print('Extraction completed.')
+    finally:
+        # Always try to remove the downloaded zip
+        if os.path.exists(zip_local_path):
+            os.remove(zip_local_path)
+
+    if not os.path.isfile(json_local_path):
+        sys.stderr.write(f'Unexpected error: {EXPECTED_JSON_NAME} not found after extraction.\n')
+        sys.exit(1)
+
+    print(f'Download and extraction finished: {json_local_path}')
 
 
-# 1- get the connection parameters
-directory = sys.argv[1]
-serverHost = sys.argv[2]
-serverPort = sys.argv[3]
-serverUser = sys.argv[4]
-serverPassword = sys.argv[5]
-serverDb = sys.argv[6]
-
-# 2- Connects with the database and the PedagogicalSoftwareData collection
-client = MongoClient('mongodb://' + serverUser + ':' + serverPassword + '@' + serverHost + ':' + serverPort + '/' +
-                     serverDb)
-db = client[serverDb]
-pedagogicalsoftwaredata = db.PedagogicalSoftwareData
-
-# 3- If the directory does not exists, it creates the directory
-if not os.path.exists(directory):
-    os.makedirs(directory)
-
-# 4- Opens the file to write the database information
-with open(directory + '/pedagogicalinterventions.json', 'a') as outfile:
-    # 5- Retrieve all the information
-    for data in pedagogicalsoftwaredata.find():
-
-        # 4.1- Deleting the elements that will not be used in machine learning
-        del data['_id']
-        del data['_class']
-        if 'relatedSolution' in data:
-            del data['relatedSolution']
-        if 'tree' in data:
-            del data['tree']
-        if 'solutionTree' in data:
-            del data['solutionTree']
-        if 'elements' in data:
-            del data['elements']
-        if 'binary' in data:
-            del data['binary']
-        if 'screenShot' in data:
-            del data['screenShot']
-        if 'exerciseId' in data:
-            del data['exerciseId']
-        if 'student' in data:
-            if 'institutionId' in data['student']:
-                del data['student']['institutionId']
-            if 'userId' in data['student']:
-                del data['student']['userId']
-            if 'studentNumber' in data['student']:
-                del data['student']['studentNumber']
-        if 'exercise' in data:
-            if 'name' in data['exercise']:
-                del data['exercise']['name']
-            if 'description' in data['exercise']:
-                del data['exercise']['description']
-        if 'solutionDistance' in data:
-            if 'nextSteps' in data['solutionDistance']:
-                del data['solutionDistance']['nextSteps']
-
-
-        # 4.2- Write the information in the file defined
-        json.dump(data, outfile, default=converter)
-        outfile.write('\n')
+if __name__ == '__main__':
+    main()
