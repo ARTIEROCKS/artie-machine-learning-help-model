@@ -1,11 +1,12 @@
 schema: '2.0'
 stages:
   download:
-    cmd: python3 src/download.py data localhost 27017 artie_u ArtieU123 artie
+    cmd: python3 src/download.py data
     deps:
     - path: src/download.py
-      md5: 252063a7fe510449765914dcad88e8df
-      size: 2531
+      hash: md5
+      md5: 07e046535bfccaeb05c335730ffcea6c
+      size: 2409
     outs:
     - path: data/pedagogicalinterventions.json
       hash: md5
@@ -21,8 +22,8 @@ stages:
       size: 23147121
     - path: src/formatcsv.py
       hash: md5
-      md5: 7bb5d64d2e0ebcc910e185754f529251
-      size: 10828
+      md5: a445de0a5fe1714226dd7371fe8d5bc7
+      size: 11172
     outs:
     - path: data/pedagogicalinterventions.csv
       hash: md5
@@ -39,8 +40,8 @@ stages:
       size: 3606733
     - path: src/featureselection.py
       hash: md5
-      md5: 6a3296e56840a0d726f354b91e8889e7
-      size: 3553
+      md5: 381634a4435109755c1a0198fe66859e
+      size: 3849
     params:
       params.yaml:
         selection.drop_columns:
@@ -102,38 +103,38 @@ stages:
         model.mask_value: -1
         model.percentage_train_size: 70
         model.return_sequences: true
-        model.second_lstm_layer: true
+        model.second_lstm_layer: false
         model.show_summary: true
-        model.training_batch_size: 8
+        model.training_batch_size: 32
         model.training_class_weights: true
         model.training_early_stopping_patience: 100
         model.training_epochs: 500
         model.training_reduce_lr_factor: 0.3
         model.training_reduce_lr_patience: 30
         model.use_attention: true
-        model.use_bidirectional: true
+        model.use_bidirectional: false
         model.use_dropouts: true
     outs:
     - path: metrics/plots.csv
       hash: md5
-      md5: c38607de763906b0cec96a5b3d61e8a5
-      size: 85261
+      md5: 367f086a6d4d9b40063ed52311a07494
+      size: 28825
     - path: metrics/scores.json
       hash: md5
-      md5: 30e42f20e11a482ef7c6f7f8b4f01383
-      size: 461
+      md5: 279ef689d21114f09c6c7427e688ecc7
+      size: 460
     - path: metrics/val_threshold_metrics.json
       hash: md5
-      md5: 81bb68280e4cc59f85f39a5a67d21517
-      size: 61398
+      md5: 7df8603a50299f793ba7c37e8a4b2a79
+      size: 21161
     - path: model/help_model.keras
       hash: md5
-      md5: 59b2b09897385009805493a675e95583
-      size: 25681031
+      md5: 7b21654d79cdcc454b0803aa4fde3874
+      size: 3401359
     - path: model/help_model_attention.keras
       hash: md5
-      md5: 1058b9c36c9a40a8cd90ea2f102408a1
-      size: 8591224
+      md5: 53483366c5215e5d41f674e08c89a351
+      size: 1150949
   transformationdr:
     cmd: python3 src/formatcsv_datarobot.py data/pedagogicalinterventions.json 
       data/pedagogicalinterventions_datarobot.csv
@@ -162,8 +163,8 @@ stages:
       size: 3606733
     - path: src/data_analysis.py
       hash: md5
-      md5: 5859a2339e35fa58469d24074f05e9d5
-      size: 13341
+      md5: 0acfed6febcf94207ac52a241d5c6aaf
+      size: 13440
     outs:
     - path: data/shap_feature_importance.csv
       hash: md5
@@ -179,8 +180,8 @@ stages:
       size: 320567
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 5cd7274fce59212db8f9b068c05a5575
-      size: 484155
+      md5: 6ece0019ef227c15fb3fe0396cb8da77
+      size: 481300
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
       md5: 47a61873fae7c1a9c559ad1d66af25fd
@@ -198,12 +199,12 @@ stages:
       size: 1376354
     - path: model/help_model.keras
       hash: md5
-      md5: 59b2b09897385009805493a675e95583
-      size: 25681031
+      md5: 7b21654d79cdcc454b0803aa4fde3874
+      size: 3401359
     - path: params.yaml
       hash: md5
-      md5: 333e0ab505c63d31f23a6df2e2c90ce1
-      size: 1050
+      md5: ad07ddf2ab45b0e375699a522ee25ea9
+      size: 1053
     - path: src/generate_attention_heatmap.py
       hash: md5
       md5: 6ae2220a24d9f4fe80b07a0ed7b184f2
@@ -219,5 +220,5 @@ stages:
     outs:
     - path: metrics/test_attention.csv
       hash: md5
-      md5: 3dfbdcc9681cebeee3b74fb6610f4c60
+      md5: 6215c29415c14433cdf863371017fd7f
       size: 3465
