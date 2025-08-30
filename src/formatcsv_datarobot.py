@@ -78,7 +78,7 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
                      'exercise_is_evaluation',
                      'exercise_level', 'solution_distance_family_distance', 'solution_distance_element_distance',
                      'solution_distance_position_distance', 'solution_distance_input_distance',
-                     'solution_distance_total_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
+                     'bed_distance', 'seconds_help_open', 'finished_exercise', 'valid_solution', 'grade',
                      'total_seconds','request_help'])
 
     for element in interventions:
@@ -143,7 +143,10 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
         # Student information
         if 'student' in element:
-            if 'gender' in element['student']:
+            # Prefer student_gender si está presente; en su defecto usar gender
+            if 'student_gender' in element['student']:
+                student_sex = element['student']['student_gender']
+            elif 'gender' in element['student']:
                 student_sex = element['student']['gender']
             if 'age' in element['student']:
                 student_age = element['student']['age']
