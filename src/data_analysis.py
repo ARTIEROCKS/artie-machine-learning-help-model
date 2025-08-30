@@ -60,7 +60,7 @@ def plot_class_distribution(df, target_column, output_path, summary_csv_path=Non
 
     return summary_df
 
-def analyze_feature_importance_shap(df, target_column, drop_columns=None, output_dir="shap_analysis", output_prefix="shap", test_size=0.2, random_state=42):
+def analyze_feature_importance_shap(df, target_column, drop_columns=None, output_dir="shap_analysis", output_prefix="shap", test_size=0.3, random_state=42):
     """
     Performs feature importance analysis using SHAP values and saves the results as images and CSV.
 
@@ -104,7 +104,7 @@ def analyze_feature_importance_shap(df, target_column, drop_columns=None, output
 
     # Train XGBoost model
     print("Training XGBoost model for SHAP analysis...")
-    model = xgb.XGBClassifier(eval_metric='logloss')
+    model = xgb.XGBClassifier(eval_metric='aucpr')
     model.fit(X_train, y_train)
 
     # Calculate SHAP values
