@@ -11,10 +11,18 @@ import os  # Added for ensuring output directories
 
 def load(file, columns_to_delete):
     df = pd.read_csv(file, delimiter=',')
+
+    # Normaliza nombres por compatibilidad hacia atrás (old -> new)
+    if 'solution_distance_total_distance' in df.columns:
+        df = df.rename(columns={'solution_distance_total_distance': 'bed_distance'})
+
+    # Ajusta la lista de columnas a eliminar al nuevo nombre y evita errores si faltan
+    columns_to_delete = ['bed_distance' if c == 'solution_distance_total_distance' else c for c in columns_to_delete]
+
     # Deletes the evaluation exercises
     df_filtered = df.drop(df[df.exercise_is_evaluation == 1].index)
-    # Deletes the columns
-    df_filtered.drop(columns_to_delete, inplace=True, axis=1)
+    # Deletes the columns (solo si existen, para evitar KeyError)
+    df_filtered.drop(columns=[c for c in columns_to_delete if c in df_filtered.columns], inplace=True, axis=1)
     return df, df_filtered
 
 

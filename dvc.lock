@@ -36,12 +36,12 @@ stages:
     deps:
     - path: data/pedagogicalinterventions.csv
       hash: md5
-      md5: d00d95508ed3842a39dd1c9cb5344326
-      size: 3606733
+      md5: e47eafd8de9ea76f03c0106201307e5c
+      size: 3606713
     - path: src/featureselection.py
       hash: md5
-      md5: 381634a4435109755c1a0198fe66859e
-      size: 3849
+      md5: 0b5a5a78ab2c2bca784f96857b3a92fb
+      size: 4357
     params:
       params.yaml:
         selection.drop_columns:
@@ -63,20 +63,20 @@ stages:
     outs:
     - path: data/featureselection.csv
       hash: md5
-      md5: 9dd60180234b23a740e52d10f0a586c6
-      size: 1376354
+      md5: e3a585a8bd2b65d5820721e2baead170
+      size: 1376334
     - path: data/selectedfeatures.csv
       hash: md5
-      md5: f4f724016002253d0d509d096d51adb5
-      size: 382
+      md5: 7d536a49f8254832afa600207d1235c0
+      size: 362
     - path: dvc_plots/heatmap_correlation_after.png
       hash: md5
-      md5: ac0019cfb36a0a82f85d1f39c7ab5b58
-      size: 257733
+      md5: b8e03ba7ecf3f4b20efa18496388ee29
+      size: 254926
     - path: dvc_plots/heatmap_correlation_before.png
       hash: md5
-      md5: 920400f8f7fa9ef039a5e261d8224b2c
-      size: 252928
+      md5: 3e40162a8fb99467f6b5c8dee288d90f
+      size: 250367
   train:
     cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
       data/featureselection.csv --output-model-file model/help_model.keras 
@@ -163,8 +163,8 @@ stages:
       size: 3606713
     - path: src/data_analysis.py
       hash: md5
-      md5: baf076a931c7d26a9962ddc32b7b7562
-      size: 14444
+      md5: 2e312c6b84f860aa5dab5be03ff81ef7
+      size: 14642
     outs:
     - path: data/shap_feature_importance.csv
       hash: md5
@@ -180,8 +180,8 @@ stages:
       size: 309989
     - path: dvc_plots/shap_feature_importance_beeswarm.png
       hash: md5
-      md5: 26c4f51ceacc0909db35499c57005aaf
-      size: 487786
+      md5: 7df7bbceccf84dfd3cf991ee25045689
+      size: 486475
     - path: dvc_plots/shap_feature_importance_waterfall.png
       hash: md5
       md5: effd031e8bdcff735dd34f1a16dfcdce

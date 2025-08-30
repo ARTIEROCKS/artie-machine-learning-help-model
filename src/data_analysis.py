@@ -309,6 +309,9 @@ if __name__ == "__main__":
 
     # Load dataset
     df = pd.read_csv(input_csv_file)
+    # Normaliza nombres por compatibilidad hacia atrás
+    if 'solution_distance_total_distance' in df.columns:
+        df = df.rename(columns={'solution_distance_total_distance': 'bed_distance'})
 
     # Filter students by age ≤ 15 with valid numeric values
     df = df.dropna(subset=['student_age'])

@@ -87,7 +87,7 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     apted_columns = ["group_id","date_time","request_help", "apted_distance", "tree_grade"]
     artie_columns = ["group_id","date_time","request_help", "solution_distance_family_distance",
                      "solution_distance_element_distance", "solution_distance_position_distance",
-                     "solution_distance_input_distance", "solution_distance_total_distance", "grade"]
+                     "solution_distance_input_distance", "bed_distance", "grade"]
 
     if distance_calculation_type.lower() == 'artie':
         base_drop = [col for col in apted_columns if col in df.columns]
