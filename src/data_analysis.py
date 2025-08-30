@@ -265,6 +265,31 @@ def compute_time_steps_means(df, group_col='group_id', datetime_col='date_time',
     print(f"Time steps mean analysis saved to: {output_path}")
     return means_df
 
+def compute_and_save_correlation_matrix(df, csv_path='data/correlation_matrix.csv'):
+    """
+    Computes the correlation matrix for numeric columns and saves it to a CSV.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        csv_path (str): Output CSV path (default 'data/correlation_matrix.csv').
+
+    Returns:
+        pd.DataFrame: The correlation matrix.
+    """
+    # Keep only numeric columns for correlation
+    numeric_df = df.select_dtypes(include=[np.number]).copy()
+    if numeric_df.empty:
+        print("Warning: no numeric columns available for correlation matrix.")
+        corr = pd.DataFrame()
+    else:
+        corr = numeric_df.corr()
+
+    # Save to CSV
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    corr.to_csv(csv_path, index=True)
+    print(f"Correlation matrix guardada en: {csv_path} (shape: {corr.shape})")
+    return corr
+
 
 
 if __name__ == "__main__":
@@ -295,6 +320,9 @@ if __name__ == "__main__":
     df = df.reset_index(drop=True)
 
     print(f"Total rows after the filter: {len(df)}")
+
+    # Save correlation matrix CSV for analysis
+    compute_and_save_correlation_matrix(df, csv_path='data/correlation_matrix.csv')
 
     # Compute time steps per group_id and day
     output_time_steps_csv = sys.argv[5].strip() if len(sys.argv) > 5 else "data/time_steps_analysis.csv"
