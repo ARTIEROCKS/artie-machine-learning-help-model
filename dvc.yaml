@@ -6,25 +6,30 @@ stages:
     outs:
     - data/pedagogicalinterventions.json
   transformation:
-    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json data/pedagogicalinterventions.csv
+    cmd: python3 src/formatcsv.py data/pedagogicalinterventions.json 
+      data/pedagogicalinterventions.csv
     deps:
     - data/pedagogicalinterventions.json
     - src/formatcsv.py
     outs:
     - data/pedagogicalinterventions.csv
   dataanalysis:
-    cmd: python3 src/data_analysis.py params.yaml data/pedagogicalinterventions.csv dvc_plots/class_distribution.png data/class_distribution_summary.csv
+    cmd: python3 src/data_analysis.py params.yaml 
+      data/pedagogicalinterventions.csv dvc_plots/class_distribution.png 
+      data/class_distribution_summary.csv
     deps:
-      - data/pedagogicalinterventions.csv
-      - src/data_analysis.py
+    - data/pedagogicalinterventions.csv
+    - src/data_analysis.py
     outs:
-      - dvc_plots/shap_feature_importance_bar.png
-      - dvc_plots/shap_feature_importance_beeswarm.png
-      - dvc_plots/shap_feature_importance_waterfall.png
-      - data/shap_feature_importance.csv
-      - data/time_steps_analysis.csv
+    - dvc_plots/shap_feature_importance_bar.png
+    - dvc_plots/shap_feature_importance_beeswarm.png
+    - dvc_plots/shap_feature_importance_waterfall.png
+    - data/shap_feature_importance.csv
+    - data/time_steps_analysis.csv
   featureselection:
-    cmd: python3 src/featureselection.py params.yaml data/pedagogicalinterventions.csv data/featureselection.csv data/selectedfeatures.csv
+    cmd: python3 src/featureselection.py params.yaml 
+      data/pedagogicalinterventions.csv data/featureselection.csv 
+      data/selectedfeatures.csv
     deps:
     - data/pedagogicalinterventions.csv
     - src/featureselection.py
@@ -40,7 +45,10 @@ stages:
     - dvc_plots/heatmap_correlation_after.png
     - dvc_plots/heatmap_correlation_before.png
   train:
-    cmd: python3 src/train.py --params-file params.yaml --input-csv-file data/featureselection.csv --output-model-file model/help_model.keras --plots-file-name metrics/plots.csv --metrics-file-name metrics/scores.json --use-gpu --output-dir images
+    cmd: python3 src/train.py --params-file params.yaml --input-csv-file 
+      data/featureselection.csv --output-model-file model/help_model.keras 
+      --plots-file-name metrics/plots.csv --metrics-file-name 
+      metrics/scores.json --use-gpu --output-dir images
     deps:
     - data/featureselection.csv
     - data/time_steps_analysis.csv
@@ -74,7 +82,11 @@ stages:
     plots:
     - metrics/plots.csv
   attentionheatmap:
-    cmd: python3 src/generate_attention_heatmap.py --params-file params.yaml --input-csv-file data/featureselection.csv --model-file model/help_model.keras --sequence-index 0 --output-dir images --heatmap-file-name attention_heatmap.png --model-diagram-name model_lstm_attention.png --save-attention-csv metrics/test_attention.csv
+    cmd: python3 src/generate_attention_heatmap.py --params-file params.yaml 
+      --input-csv-file data/featureselection.csv --model-file 
+      model/help_model.keras --sequence-index 0 --output-dir images 
+      --heatmap-file-name attention_heatmap.png --model-diagram-name 
+      model_lstm_attention.png --save-attention-csv metrics/test_attention.csv
     deps:
     - src/generate_attention_heatmap.py
     - src/train.py
@@ -88,18 +100,21 @@ artifacts:
   help-model:
     path: models/help_model.keras
     type: model
-    desc: 'Help model'
+    desc: Help model
     labels:
-      - classification
-      - LSTM
+    - classification
+    - LSTM
     meta:
       framework: keras
   help-attention-model:
     path: models/help_model_attention.keras
     type: model
-    desc: 'Help attention model'
+    desc: Help attention model
     labels:
-      - classification
-      - LSTM
+    - classification
+    - LSTM
     meta:
       framework: keras
+  help_model_attention:
+    path: model/help_model_attention.keras
+    type: model
