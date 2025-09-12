@@ -1,7 +1,24 @@
 import csv
 import json
 import sys
+import os  # Added for directory creation
 from datetime import datetime
+
+
+# Helper to parse dateTime values that may come with or without microseconds
+# Tries multiple known formats and returns a datetime or None if unparsable.
+# We avoid adding external dependencies (like dateutil) to keep the pipeline lightweight/reproducible.
+# Returning None (instead of raising) allows the calling code to decide whether to skip or handle missing dates.
+def parse_datetime(value):
+    if not value:
+        return None
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    # If no format matched, we silently skip; alternatively could log a warning.
+    return None
 
 
 # Function to load the json file data
@@ -34,19 +51,21 @@ def getfirstaction(interventions):
             if '_id' in element['student']:
                 student_id = element['student']['_id']
         if 'dateTime' in element:
-            date_time = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
+            date_time = parse_datetime(element['dateTime'])
         if 'lastLogin' in element:
             last_login = element['lastLogin']
         if 'exercise' in element:
             if '_id' in element['exercise']:
                 exercise_id = element['exercise']['_id']
 
-        if student_id is not None and date_time is not None and last_login is not None and exercise_id is not None:
-            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
-                if date_time < first_actions[student_id + '_' + exercise_id + '_' + last_login]:
-                    first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+        if (student_id is not None and date_time is not None and
+                last_login is not None and exercise_id is not None):
+            key = f"{student_id}_{exercise_id}_{last_login}"
+            if key in first_actions:
+                if date_time < first_actions[key]:
+                    first_actions[key] = date_time
             else:
-                first_actions[student_id + '_' + exercise_id + '_' + last_login] = date_time
+                first_actions[key] = date_time
 
     return first_actions
 
@@ -54,7 +73,7 @@ def getfirstaction(interventions):
 # Function to write the software interventions in csv format
 def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     row_list = []
-    row_list.append(['student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
+    row_list.append(['group_id', 'date_time', 'student_sex', 'student_mother_tongue', 'student_age', 'student_competence',
                      'student_motivation', 'exercise_skill_parallelism', 'exercise_skill_logical_thinking',
                      'exercise_skill_flow_control', 'exercise_skill_user_interactivity',
                      'exercise_skill_information_representation',
@@ -102,6 +121,9 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         exercise_id = None
         last_login = None
 
+        date_time = None
+        group_id = None
+
         if 'student' in element:
             if '_id' in element['student']:
                 student_id = element['student']['_id']
@@ -115,12 +137,15 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
 
         # Time calculation between the first action of the exercise and the current action
         if student_id is not None and last_login is not None and exercise_id is not None:
-            if student_id + '_' + exercise_id + '_' + last_login in first_actions.keys():
-                if 'dateTime' in element:
-                    date_time_obj = datetime.strptime(element['dateTime'], '%Y-%m-%d %H:%M:%S.%f')
-                    first_action = first_actions[student_id + '_' + exercise_id + '_' + last_login]
+            key = f"{student_id}_{exercise_id}_{last_login}"
+            if key in first_actions and 'dateTime' in element:
+                date_time_obj = parse_datetime(element['dateTime'])
+                if date_time_obj is not None:
+                    first_action = first_actions[key]
                     difference = (date_time_obj - first_action)
                     total_seconds = difference.total_seconds()
+                    date_time = date_time_obj
+                    group_id = f"{student_id}_{exercise_id}"
 
         # Student information
         if 'student' in element:
@@ -188,8 +213,8 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
         if 'treeGrade' in element:
             tree_grade = element['treeGrade']
 
-        # Creating  the row of the csv
-        row_list.append([student_sex, student_mother_tongue, student_age, student_competence,
+        # Creating the row of the csv
+        row_list.append([group_id, date_time, student_sex, student_mother_tongue, student_age, student_competence,
                          student_motivation, exercise_skill_parallelism, exercise_skill_logical_thinking,
                          exercise_skill_flow_control, exercise_skill_user_interactivity,
                          exercise_skill_information_representation,
@@ -204,8 +229,14 @@ def writepedagogicalsoftwareinterventionscsv(interventions, first_actions):
     return row_list
 
 
-# 1- Gets the json data
-data = loadjsondata(sys.argv[1])
+# 1- Gets the json data (sanitize incoming CLI args to avoid leading/trailing spaces from YAML line breaks)
+input_json_path = sys.argv[1].strip()
+output_csv_path = sys.argv[2].strip()
+
+# Ensure parent directory for output exists (robust if 'data' missing)
+os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+
+data = loadjsondata(input_json_path)
 
 # 2- Get the first action of each exercise
 actions = getfirstaction(data)
@@ -214,6 +245,6 @@ actions = getfirstaction(data)
 rowList = writepedagogicalsoftwareinterventionscsv(data, actions)
 
 # 4- Writing the csv file
-with open(sys.argv[2], 'w', newline='') as file:
+with open(output_csv_path, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerows(rowList)

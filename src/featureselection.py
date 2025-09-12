@@ -6,6 +6,7 @@ import csv
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os  # Added for ensuring output directories
 
 
 def load(file, columns_to_delete):
@@ -33,10 +34,14 @@ def drop_high_correlated(cor, selected_features, limit):
     return to_drop
 
 
-params_file = sys.argv[1]
-input_csv_file = sys.argv[2]
-output_csv_file = sys.argv[3]
-output_selected_columns_file = sys.argv[4]
+params_file = sys.argv[1].strip()
+input_csv_file = sys.argv[2].strip()
+output_csv_file = sys.argv[3].strip()
+output_selected_columns_file = sys.argv[4].strip()
+
+# Ensure parent directories exist (robust against accidental missing folders)
+os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
+os.makedirs(os.path.dirname(output_selected_columns_file), exist_ok=True)
 
 with open(params_file, 'r') as fd:
     params = yaml.safe_load(fd)
@@ -52,8 +57,9 @@ heatmap_correlation_path_after = params['selection']['heatmap_correlation_path_a
 df, df_filtered = load(input_csv_file, drop_columns)
 
 if method == 'filter':
-    # Using Pearson Correlation
-    cor = df_filtered.corr(method='pearson')
+    # Using Pearson Correlation (numeric columns only to avoid string-to-float errors)
+    numeric_df = df_filtered.select_dtypes(include=[np.number, 'bool'])
+    cor = numeric_df.corr(method='pearson')
     cor_tri = cor.abs().where(np.triu(np.ones(cor.shape), k=1).astype(bool))
     selected_features = filter_method(cor_tri, target, number_of_features)
     selected_features_columns = list(selected_features.to_dict().keys())
@@ -92,4 +98,3 @@ if method == 'filter':
 
 # Writes the output file
 df.to_csv(output_csv_file, sep=',', index=False)
-

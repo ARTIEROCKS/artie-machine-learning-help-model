@@ -4,7 +4,6 @@ warnings.filterwarnings("ignore", message="Layer 'lambda.*' .* does not support 
 import pandas as pd
 import numpy as np
 import math
-import sys
 import os
 import yaml
 import tensorflow as tf
@@ -18,10 +17,10 @@ from keras_custom_layers import (
     compute_mask_layer,
     squeeze_last_axis_func,
     mask_attention_scores_func,
-    apply_attention_func,
-    MaskedRepeatVector,
-    AttentionLayer
+    apply_attention_func
 )
+from sklearn.metrics import precision_recall_curve
+import json
 
 # Set seeds for reproducibility
 np.random.seed(0)
@@ -31,32 +30,28 @@ np.random.seed(1)
 # Function to load the csv file
 def load(file):
 
-  # Reads the csv file
-  df = pd.read_csv(file, delimiter=',')
+  # Reads the csv file (robust to different separators)
+  try:
+    df = pd.read_csv(file)
+  except Exception:
+    try:
+      df = pd.read_csv(file, sep=None, engine='python')  # auto-detect separator
+    except Exception:
+      df = pd.read_csv(file, sep=';')  # final fallback for semicolon-separated files
   columns = len(df.columns) - 1
+
+  # Read max_time_steps from precomputed analysis
   max_time_steps = 1
-  last_step_seconds = -1
-  current_time_steps = 0
+  try:
+    ts_path = os.path.join('data', 'time_steps_analysis.csv')
+    if os.path.exists(ts_path):
+      ts_df = pd.read_csv(ts_path)
+      if 'time_steps' in ts_df.columns and not ts_df.empty:
+        max_time_steps = int(ts_df['time_steps'].max())
+  except Exception as e:
+    print(f"Warning: could not read time steps analysis file: {e}. Falling back to default max_time_steps=1")
 
-  # Reading all the rows
-  for index, row in df.iterrows():
-
-    # Get the "time" of the current row
-    current_seconds = df["total_seconds"][index]
-
-    # If the last step seconds is greater than the current one, we
-    if last_step_seconds > current_seconds:
-      current_time_steps = 0
-
-    current_time_steps += 1
-
-    # If the current time steps are greater than the max, we set the max time steps
-    if current_time_steps > max_time_steps:
-      max_time_steps = current_time_steps
-
-    last_step_seconds = current_seconds
-
-  return df,max_time_steps,columns
+  return df, max_time_steps, columns
 
 
 # Function to create the padding and the masking
@@ -87,18 +82,85 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     df = df[pd.to_numeric(df['student_age'], errors='coerce').notna()]
     # Reset index after filtering to ensure proper alignment
     df = df.reset_index(drop=True)
-    # Determines the columns to drop
-    apted_columns = ["request_help", "apted_distance", "tree_grade"]
-    artie_columns = ["request_help", "solution_distance_family_distance", "solution_distance_element_distance",
-                     "solution_distance_position_distance", "solution_distance_input_distance",
-                     "solution_distance_total_distance", "grade"]
+
+    # Determine columns to drop from features (label + distance set + grouping columns)
+    apted_columns = ["group_id","date_time","request_help", "apted_distance", "tree_grade"]
+    artie_columns = ["group_id","date_time","request_help", "solution_distance_family_distance",
+                     "solution_distance_element_distance", "solution_distance_position_distance",
+                     "solution_distance_input_distance", "solution_distance_total_distance", "grade"]
+
     if distance_calculation_type.lower() == 'artie':
-        cols_to_drop = [col for col in apted_columns if col in df.columns]
+        base_drop = [col for col in apted_columns if col in df.columns]
     else:
-        cols_to_drop = [col for col in artie_columns if col in df.columns]
-    # Removes the columns that we do not need
-    df_X = df.drop(axis=1, columns=cols_to_drop)
-    # Updates the columns
+        base_drop = [col for col in artie_columns if col in df.columns]
+
+    # Always drop grouping columns from features
+    for col in ['group_id', 'date_time']:
+        if col not in base_drop and col in df.columns:
+            base_drop.append(col)
+
+    # If grouping columns exist, group by group_id + date (yyyy-mm-dd)
+    if 'group_id' in df.columns and 'date_time' in df.columns:
+        df_work = df.copy()
+        # Build date column
+        df_work['__date'] = pd.to_datetime(df_work['date_time'], errors='coerce').dt.strftime('%Y-%m-%d')
+        df_work = df_work.dropna(subset=['__date'])
+
+        # Sort for deterministic ordering within sequences
+        if 'total_seconds' in df_work.columns:
+            df_work = df_work.sort_values(by=['group_id', '__date', 'total_seconds']).reset_index(drop=True)
+        else:
+            df_work = df_work.sort_values(by=['group_id', '__date']).reset_index(drop=True)
+
+        sample_x = None
+        sample_y = None
+
+        # Iterate groups and build sequences
+        for (gid, dstr), gdf in df_work.groupby(['group_id', '__date'], sort=False):
+            # Prepare features X and labels y for this group
+            df_y = gdf["request_help"].to_numpy().reshape(-1, 1)
+
+            # Drop columns not used for features
+            cols_to_drop = [c for c in base_drop if c in gdf.columns]
+            if '__date' in gdf.columns:
+                cols_to_drop.append('__date')
+            df_X = gdf.drop(columns=cols_to_drop, axis=1, errors='ignore')
+
+            # Keep ordering as in gdf (already sorted)
+            X = df_X.to_numpy()
+            y = df_y
+
+            # Update feature dimension
+            columns = df_X.shape[1]
+
+            # Truncate or pad to max_time_steps
+            if X.shape[0] > max_time_steps:
+                X = X[:max_time_steps, :]
+                y = y[:max_time_steps, :]
+            elif X.shape[0] < max_time_steps:
+                X, y = padding_masking(X, y, max_time_steps, columns, mask_value)
+
+            # Accumulate samples
+            X = np.array([X])
+            y = np.array([y])
+            if sample_x is None:
+                sample_x = X
+                sample_y = y
+            else:
+                sample_x = np.vstack([sample_x, X])
+                sample_y = np.vstack([sample_y, y])
+
+        # Compute train/test split
+        train_size = math.floor(sample_x.shape[0] * percentage_train / 100)
+        train_x = sample_x[:train_size]
+        train_y = sample_y[:train_size]
+        test_x = sample_x[train_size + 1:]
+        test_y = sample_y[train_size + 1:]
+
+        return df, train_x, train_y, test_x, test_y
+
+    # Fallback: if grouping columns are missing, use previous time reset logic
+    df_X = df.drop(axis=1, columns=[c for c in base_drop if c in df.columns])
     columns = df_X.shape[1]
     df_y = df["request_help"]
     last_step_seconds = -1
@@ -107,18 +169,14 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
     sample_x = None
     sample_y = None
     for index, row in df_X.iterrows():
-        current_seconds = df_X["total_seconds"][index]
-        # If the time steps of x is none, we create a new np array
+        current_seconds = df_X["total_seconds"][index] if "total_seconds" in df_X.columns else index
         if time_steps_x is None:
             time_steps_x = np.array([row])
             time_steps_y = np.array([df_y.iloc[[index]]])
         else:
             time_steps_x = np.vstack([time_steps_x, row])
             time_steps_y = np.vstack([time_steps_y, df_y.iloc[[index]]])
-        # If the last step seconds are greater than the current seconds
-        # we add a new sample block
         if last_step_seconds > current_seconds:
-            # We complete the time series with the maximum and the number of columns
             time_steps_x, time_steps_y = padding_masking(time_steps_x, time_steps_y, max_time_steps, columns, mask_value)
             if sample_x is None:
                 sample_x = np.array([time_steps_x])
@@ -128,9 +186,8 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
                 sample_y = np.vstack([sample_y, [time_steps_y]])
             time_steps_x = None
             time_steps_y = None
-        # We get the current seconds as the new last step seconds
         last_step_seconds = current_seconds
-    # We calculate the train size in base of the percentage
+
     train_size = math.floor(sample_x.shape[0] * percentage_train / 100)
     train_x = sample_x[:train_size]
     train_y = sample_y[:train_size]
@@ -142,66 +199,41 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
 # Function to generate the model
 def generate_model(shape, mask_value, lstm_units, return_sequences=False, second_lstm_layer=False, use_dropout=False,
                    dropout_value=0.5, use_bidirectional=True, use_attention=False):
-    # Create the model using the Functional API for better mask handling
     inputs = tf.keras.Input(shape=shape)
     masked = layers.Masking(mask_value=mask_value)(inputs)
-
-    # Add a second LSTM layer if requested
+    # Optional first LSTM stack
     if second_lstm_layer:
         if use_bidirectional:
-            x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True))(masked)
+            x = Bidirectional(layers.LSTM(lstm_units, return_sequences=True))(masked)
         else:
-            x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=True)(masked)
-        # Add dropout after the first LSTM layer if requested
+            x = layers.LSTM(lstm_units, return_sequences=True)(masked)
         if use_dropout:
             x = layers.Dropout(dropout_value)(x)
     else:
         x = masked
-
-    # Add the main LSTM layer (always present)
+    # Main LSTM layer
     if use_bidirectional:
-        x = Bidirectional(layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences))(x)
+        x = Bidirectional(layers.LSTM(lstm_units, return_sequences=return_sequences))(x)
     else:
-        x = layers.LSTM(lstm_units, activation='sigmoid', return_sequences=return_sequences)(x)
-
-    # Add dropout after the main LSTM layer if requested
+        x = layers.LSTM(lstm_units, return_sequences=return_sequences)(x)
     if use_dropout:
         x = layers.Dropout(dropout_value)(x)
-
+    # Optional attention
     attention_weights = None
     if use_attention:
-        # Compute attention scores
         attention_scores = layers.Dense(1, activation='tanh', name='attention_score')(x)
-        attention_scores = layers.Lambda(squeeze_last_axis_func)(attention_scores)  # (batch, time_steps)
-
-        # Compute mask: 1 for valid, 0 for masked
-        mask = layers.Lambda(compute_mask_layer(mask_value))(inputs)  # (batch, time_steps)
-
+        attention_scores = layers.Lambda(squeeze_last_axis_func)(attention_scores)
+        mask = layers.Lambda(compute_mask_layer(mask_value))(inputs)
         masked_attention_scores = layers.Lambda(mask_attention_scores_func)([attention_scores, mask])
-
         attention = layers.Softmax(axis=1, name='attention_weights')(masked_attention_scores)
         attention_weights = attention
-        # Apply attention per time step (no reduce_sum)
         x = layers.Lambda(apply_attention_func)([x, attention])
-        # x shape: (batch, time_steps, features)
-
-    outputs = layers.Dense(1, activation='sigmoid')(x)  # (batch, time_steps, 1)
+    outputs = layers.Dense(1, activation='sigmoid')(x)
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-    attention_model = None
     if use_attention:
         attention_model = tf.keras.Model(inputs=inputs, outputs=attention_weights, name='attention_submodel')
         model.attention_model = attention_model
-
-    model.compile(
-        loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
-        metrics=['binary_accuracy',
-                tf.keras.metrics.Precision(name='precision'),
-                tf.keras.metrics.Recall(name='recall'),
-                tf.keras.metrics.AUC(name='auc', curve='PR')]
-    )
-
+    # Compilation deferred to main to allow dynamic optimizer with schedule
     return model
 
 # Function to compute sample weights for time series data
@@ -247,6 +279,7 @@ if __name__ == "__main__":
     parser.add_argument('--metrics-file-name', required=True, help='JSON file for metrics')
     parser.add_argument('--use-gpu', action='store_true', help='Enable GPU usage')
     parser.add_argument('--output-dir', default='images', help='Directory for output images')
+    parser.add_argument('--log-dir', default='logs', help='TensorBoard log directory')
     args = parser.parse_args()
 
     params_file = args.params_file
@@ -256,11 +289,13 @@ if __name__ == "__main__":
     metrics_file_name = args.metrics_file_name
     use_gpu = args.use_gpu
     output_dir = args.output_dir
+    log_dir = args.log_dir
 
-    # Check if GPU should be used based on command line argument
-    use_gpu = False
-    if len(sys.argv) > 6:
-        use_gpu = sys.argv[6].lower() == 'true'
+    # Ensure output directories exist
+    os.makedirs(os.path.dirname(plots_file_name), exist_ok=True)
+    os.makedirs(os.path.dirname(metrics_file_name), exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
     with open(params_file, 'r') as fd:
         params = yaml.safe_load(fd)
@@ -269,7 +304,7 @@ if __name__ == "__main__":
 
     mask_value = params['model'].get('mask_value', -1)  # Default -1 to mask values
     percentage_train_size = params['model'].get('percentage_train_size', 70)  # Default 80% for training
-    initial_learning_rate = params['model'].get('initial_learning_rate', 0.1)  # Default 0.1
+    initial_learning_rate = params['model'].get('initial_learning_rate', 0.001)  # default 1e-3 for cosine decay
 
     lstm_units = params['model'].get('lstm_units',256)  # Default 256 LSTM units
     return_sequences = params['model'].get('return_sequences',True)  # Default enabled
@@ -283,8 +318,8 @@ if __name__ == "__main__":
     training_batch_size = params['model'].get('training_batch_size', 32)  # Default 32 batch size
     training_class_weights = params['model'].get('training_class_weights', True)  # Default True, use class weights
     training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)  # Default 10 epochs patience
-    training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # Default 5 epochs patience to reduce LR
-    training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # Default reduce LR by a factor of 0.1
+    training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # (legacy param, unused with cosine schedule)
+    training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # (legacy param, unused with cosine schedule)
 
     show_summary = params['model'].get('show_summary', True)  # Default show model summary
 
@@ -297,24 +332,15 @@ if __name__ == "__main__":
         if gpus:
             print(f"Available GPUs: {gpus}")
             try:
-                # Specific configuration for Metal GPU on Mac
-                # We do not use memory growth for Metal as it may cause issues
-                # Enable all available GPUs
                 tf.config.set_visible_devices(gpus, 'GPU')
-
-                # Optimal configuration for Metal
-                # Limit memory usage to avoid OOM
                 tf.config.experimental.set_virtual_device_configuration(
                     gpus[0],
                     [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)]
                 )
-
-                # Configuration for better performance with Metal (if available)
                 try:
-                    tf.config.optimizer.set_jit(False)  # Disable XLA which may cause issues with Metal
+                    tf.config.optimizer.set_jit(False)
                 except:
                     pass
-
                 print("Metal GPU enabled for training with safe settings")
             except RuntimeError as e:
                 print(f"Error configuring GPU: {e}")
@@ -324,8 +350,11 @@ if __name__ == "__main__":
             use_gpu = False
     else:
         # Disable GPU usage
-        tf.config.set_visible_devices([], 'GPU')
-        print("GPU disabled for training. Using CPU.")
+        try:
+            tf.config.set_visible_devices([], 'GPU')
+            print("GPU disabled for training. Using CPU.")
+        except Exception as e:
+            print(f"Could not disable GPU explicitly: {e}")
 
     # Loads the data file and gets the maximum time steps and the number of columns
     df, max_time_steps, columns = load(input_csv_file)
@@ -346,165 +375,224 @@ if __name__ == "__main__":
     print("- Visible devices:", tf.config.get_visible_devices())
     print("- Using GPU:", use_gpu)
 
-    # Custom callback to print the learning rate at the end of each epoch
+    # Learning rate logger callback
     class LearningRateLogger(tf.keras.callbacks.Callback):
+        def __init__(self, log_dir):
+            super().__init__()
+            self.log_dir = log_dir
+            self.lr_values = []
+            self.writer = tf.summary.create_file_writer(os.path.join(log_dir, 'learning_rate'))
         def on_epoch_end(self, epoch, logs=None):
-            # Access the learning rate in a way compatible with current TF versions
+            logs = logs or {}
             try:
-                # Modern method: use get_config()
-                lr = self.model.optimizer.get_config()['learning_rate']
-                if hasattr(lr, 'numpy'):
-                    lr = lr.numpy()
-            except (AttributeError, KeyError):
-                # Alternative method: try with _decayed_lr
-                try:
-                    lr = self.model.optimizer._decayed_lr(tf.float32).numpy()
-                except (AttributeError, ValueError):
-                    # Last resort: use a fixed value
-                    lr = "Not available"
-            print(f"\nLearning rate at epoch {epoch+1}: {lr}")
-
-    callbacks = []
-    if training_early_stopping_patience > 0:
-        # Configurer callbacks for better performance and monitoring
-        callbacks = [
-            LearningRateLogger(),
-            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss',
-                                                 factor=training_reduce_lr_factor,
-                                                 patience=training_reduce_lr_patience,
-                                                 min_lr=0.0001,
-                                                 verbose=1),  # Verbose to show LR changes
-            tf.keras.callbacks.EarlyStopping(monitor='val_recall',
-                                             patience=training_early_stopping_patience,
-                                             mode='max',
-                                             restore_best_weights=True)
-        ]
-
-    # Use run_eagerly=True to avoid graph errors with symbolic tensors
+                opt = self.model.optimizer
+                lr_t = opt.learning_rate
+                if isinstance(lr_t, tf.keras.optimizers.schedules.LearningRateSchedule):
+                    lr_v = lr_t(opt.iterations)
+                else:
+                    lr_v = lr_t
+                if hasattr(lr_v, 'numpy'):
+                    lr_v = lr_v.numpy()
+            except Exception:
+                lr_v = None
+            self.lr_values.append(lr_v)
+            if lr_v is not None:
+                with self.writer.as_default():
+                    tf.summary.scalar('learning_rate', data=lr_v, step=epoch)
+            print(f"\nLearning rate at epoch {epoch+1}: {lr_v}")
+    # Validation metrics & dynamic threshold callback
+    class ValidationMetricsCallback(tf.keras.callbacks.Callback):
+        def __init__(self, val_data, mask_value, log_path, log_dir=None):
+            super().__init__()
+            self.val_x, self.val_y = val_data
+            self.mask_value = mask_value
+            self.log_path = log_path
+            self.best_f1 = -1
+            self.best_threshold = 0.5
+            self.history = []
+            self.writer = None
+            if log_dir is not None:
+                self.writer = tf.summary.create_file_writer(os.path.join(log_dir, 'validation_custom'))
+        def on_epoch_end(self, epoch, logs=None):
+            preds = self.model.predict(self.val_x, verbose=0)
+            y_true = self.val_y.reshape(-1)
+            y_pred = preds.reshape(-1)
+            mask = (y_true != self.mask_value)
+            y_true = y_true[mask]
+            y_pred = y_pred[mask]
+            precision, recall, thresholds = precision_recall_curve(y_true, y_pred)
+            f1_scores = 2 * precision * recall / (precision + recall + 1e-9)
+            idx = f1_scores.argmax()
+            best_thr = thresholds[idx] if idx < len(thresholds) else 0.5
+            best_f1 = f1_scores[idx]
+            if best_f1 > self.best_f1:
+                self.best_f1 = best_f1
+                self.best_threshold = best_thr
+            self.history.append({
+                "epoch": epoch + 1,
+                "f1": float(best_f1),
+                "best_f1_so_far": float(self.best_f1),
+                "threshold_epoch": float(best_thr),
+                "best_threshold": float(self.best_threshold)
+            })
+            if self.writer is not None:
+                with self.writer.as_default():
+                    tf.summary.scalar('val_f1', best_f1, step=epoch)
+                    tf.summary.scalar('val_best_threshold', self.best_threshold, step=epoch)
+            print(f"[ValMetrics] Epoch {epoch+1}: F1={best_f1:.4f} thr={best_thr:.3f} (best_f1={self.best_f1:.4f} best_thr={self.best_threshold:.3f})")
+        def on_train_end(self, logs=None):
+            try:
+                with open(self.log_path, "w") as f:
+                    json.dump({
+                        "best_f1": float(self.best_f1),
+                        "best_threshold": float(self.best_threshold),
+                        "epochs": self.history
+                    }, f, indent=2)
+                if self.writer is not None:
+                    with self.writer.as_default():
+                        tf.summary.scalar('final_best_f1', self.best_f1, step=0)
+                        tf.summary.scalar('final_best_threshold', self.best_threshold, step=0)
+                print(f"Validation threshold metrics saved to {self.log_path}")
+            except Exception as e:
+                print(f"Could not save validation threshold metrics: {e}")
+    # Learning rate schedule (Cosine decay)
+    steps_per_epoch = max(1, math.ceil(train_x.shape[0] / training_batch_size))
+    decay_steps = steps_per_epoch * training_epochs
+    lr_schedule = tf.keras.optimizers.schedules.CosineDecay(initial_learning_rate=initial_learning_rate,
+                                                            decay_steps=decay_steps, alpha=0.1)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule, clipnorm=1.0)
+    # Compile model
     model.compile(
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-        optimizer=tf.keras.optimizers.Adam(learning_rate=initial_learning_rate),
+        optimizer=optimizer,
         metrics=['binary_accuracy',
                  tf.keras.metrics.Precision(name='precision'),
                  tf.keras.metrics.Recall(name='recall'),
-                 tf.keras.metrics.AUC(name='auc', curve='PR')
-                 ],
-        run_eagerly=True  # This solves many graph problems
+                 tf.keras.metrics.AUC(name='auc', curve='PR')]
     )
-
+    lr_logger = LearningRateLogger(log_dir)
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True,
+                                                    write_images=False, update_freq='epoch')
+    # Instantiate validation metrics callback to access after training
+    val_metrics_cb = ValidationMetricsCallback((test_x, test_y), mask_value,
+                                               log_path=os.path.join(os.path.dirname(metrics_file_name), 'val_threshold_metrics.json'),
+                                               log_dir=log_dir)
+    callbacks = [lr_logger, tensorboard_cb,
+                 tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=max(15, training_early_stopping_patience),
+                                                  mode='max', restore_best_weights=True),
+                 val_metrics_cb]
+    # Class weight normalization
     if training_class_weights:
-        # Flatten the 3D array (samples, time_steps, 1) to 1D for class weight computation
         train_y_flat = train_y.reshape(-1)
         train_y_flat = train_y_flat[train_y_flat != mask_value]
-
-        # Compute class weights to handle class imbalance
         classes = np.unique(train_y_flat)
         weights = compute_class_weight(class_weight='balanced', classes=classes, y=train_y_flat)
-
-        # Create a dictionary with class weights
         class_weights = dict(zip(classes, weights))
-        print("Applied class weights:", class_weights)
-
-        # Compute sample weights for time series data
+        mean_w = np.mean(list(class_weights.values()))
+        for k in class_weights:
+            class_weights[k] = float(min(class_weights[k] / mean_w, 8.0))
+        print("Normalized class weights:", class_weights)
         sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
-
-        # Adjust batch_size for better performance on GPU
-        optimal_batch_size = 64 if use_gpu else training_batch_size
-
-        print(f"Starting training with batch size: {optimal_batch_size}")
-        print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
-        history = model.fit(train_x,
-                            train_y,
-                            epochs=training_epochs,
-                            batch_size=optimal_batch_size,
-                            validation_data=(test_x, test_y),
-                            verbose=1,  # 1 = progress bar for each epoch
-                            shuffle=False,
-                            callbacks=callbacks,
-                            sample_weight=sample_weights)
-
     else:
-        # Adjust batch_size for better performance on GPU
-        optimal_batch_size = 64 if use_gpu else training_batch_size
-
-        print(f"Starting training with batch size: {optimal_batch_size}")
-        print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
-        history = model.fit(train_x,
-                            train_y,
-                            epochs=training_epochs,
-                            batch_size=optimal_batch_size,
-                            validation_data=(test_x, test_y),
-                            verbose=1,  # 1 = progress bar for each epoch
-                            shuffle=False,
-                            callbacks=callbacks)
-
+        sample_weights = None
+    effective_batch = training_batch_size
+    print(f"Effective batch size: {effective_batch}")
+    print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
+    history = model.fit(train_x, train_y,
+                        epochs=training_epochs,
+                        batch_size=effective_batch,
+                        validation_data=(test_x, test_y),
+                        verbose=1,
+                        shuffle=False,
+                        callbacks=callbacks,
+                        sample_weight=sample_weights)
+    # Inject validation F1 metrics from callback into history (so they can be aggregated)
+    if hasattr(val_metrics_cb, 'history') and val_metrics_cb.history:
+        f1_list = [e['f1'] for e in val_metrics_cb.history]
+        best_f1_list = [e['best_f1_so_far'] for e in val_metrics_cb.history]
+        best_thr_list = [e['best_threshold'] for e in val_metrics_cb.history]
+        history.history['f1'] = f1_list
+        history.history['best_f1_so_far'] = best_f1_list
+        history.history['best_threshold'] = best_thr_list
     # Saving the model
     print("\nTraining completed successfully. Saving model...")
     try:
-        # Try to save in modern .keras format
         model.save(output_model_file, save_format='keras')
         print(f"Model saved to {output_model_file} in modern format")
     except Exception as e:
         print(f"Error saving in modern format: {e}")
-        # Fallback to HDF5 format
         model.save(output_model_file)
         print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
-    # Save the attention submodel if attention is used
     if use_attention and hasattr(model, 'attention_model'):
         attention_model_path = output_model_file.replace('.keras', '_attention.keras')
-        model.attention_model.save(attention_model_path)
+        try:
+            model.attention_model.save(attention_model_path, save_format='keras')
+        except Exception:
+            model.attention_model.save(attention_model_path)
         print(f"Attention submodel saved to {attention_model_path}")
 
-    # Check if the history is empty
+    # Prepare history DataFrame and metrics (reuse existing logic adapted)
     if not history.history:
-        print("WARNING: The training history is empty. It's possible the model has not been correctly trained.")
+        print("WARNING: The training history is empty.")
     else:
-        print(f"Model trained during {len(history.history['loss'])} epochs.")
-        # Check if precision and recall metrics are available
-        if 'precision' in history.history and 'recall' in history.history:
-            print(f"Final metrics: Precision: {history.history['precision'][-1]:.4f}, Recall: {history.history['recall'][-1]:.4f}")
+        if len(lr_logger.lr_values) == len(history.history['loss']):
+            history.history['lr'] = lr_logger.lr_values
         else:
-            print("Available metrics:", list(history.history.keys()))
-            print(f"Final metrics: binary_accuracy: {history.history['binary_accuracy'][-1]:.4f}")
+            history.history['lr'] = lr_logger.lr_values[:len(history.history['loss'])]
+        hist_df = pd.DataFrame(history.history)
+        print(f"Model trained during {len(hist_df['loss'])} epochs.")
+        if 'precision' in hist_df and 'recall' in hist_df:
+            print(f"Final metrics: Precision: {hist_df['precision'].iloc[-1]:.4f}, Recall: {hist_df['recall'].iloc[-1]:.4f}")
+        else:
+            print("Available metrics:", list(hist_df.columns))
+            print(f"Final binary_accuracy: {hist_df['binary_accuracy'].iloc[-1]:.4f}")
 
-    # If we want to show the summary
     if show_summary:
         print("\nModel summary:")
         model.summary()
         try:
-            # Save model diagram to output_dir
             tf.keras.utils.plot_model(model, to_file=os.path.join(output_dir, 'model.png'), dpi=200)
             print(f"Model diagram saved to {os.path.join(output_dir, 'model.png')}")
         except Exception as e:
             print(f"Error generating model diagram: {e}")
-            print("This is not critical for model training.")
 
-    # Saving the plots and metrics
-    # convert the history.history dict to a pandas DataFrame:
-    hist_df = pd.DataFrame(history.history)
+    if history.history:
+        # existing code above already created hist_df and metrics_data; we patch where metrics_data is assembled
+        # Save per-epoch history to plots file (required by DVC)
+        try:
+            hist_df.to_csv(plots_file_name, index_label='epoch')
+        except Exception as e:
+            print(f"Could not write plots CSV {plots_file_name}: {e}")
+        metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
+        if 'precision' in hist_df:
+            metrics_data['precision'] = hist_df['precision'].mean()
+        if 'recall' in hist_df:
+            metrics_data['recall'] = hist_df['recall'].mean()
+        if 'auc' in hist_df:
+            metrics_data['auc'] = hist_df['auc'].mean()
+        if 'val_loss' in hist_df:
+            metrics_data['val_loss'] = hist_df['val_loss'].mean()
+        if 'val_binary_accuracy' in hist_df:
+            metrics_data['val_binary_accuracy'] = hist_df['val_binary_accuracy'].mean()
+        if 'val_auc' in hist_df:
+            metrics_data['val_auc'] = hist_df['val_auc'].mean()
+        if 'val_recall' in hist_df:
+            metrics_data['val_recall'] = hist_df['val_recall'].mean()
+        if 'lr' in hist_df:
+            metrics_data['final_lr'] = hist_df['lr'].iloc[-1]
+            metrics_data['mean_lr'] = hist_df['lr'].mean()
+        # Add F1 stats and threshold (final, best and mean)
+        if 'f1' in hist_df:
+            metrics_data['final_f1'] = hist_df['f1'].iloc[-1]
+            metrics_data['mean_f1'] = hist_df['f1'].mean()
+        if 'best_f1_so_far' in hist_df:
+            metrics_data['best_f1'] = hist_df['best_f1_so_far'].max()
+        if 'best_threshold' in hist_df:
+            metrics_data['best_threshold'] = hist_df['best_threshold'].iloc[-1]
+        metrics_df = pd.DataFrame.from_records([metrics_data])
+        with open(metrics_file_name, mode='w') as f:
+            metrics_df.to_json(f)
+        print(f"Per-epoch metrics saved to {plots_file_name} and aggregated metrics saved to {metrics_file_name}")
 
-    # Create a DataFrame for metrics
-    metrics_data = {'loss': hist_df['loss'].mean(), 'binary_accuracy': hist_df['binary_accuracy'].mean()}
-
-    # Add precision, recall, AUC and validation metrics if they exist
-    if 'precision' in hist_df:
-        metrics_data['precision'] = hist_df['precision'].mean()
-    if 'recall' in hist_df:
-        metrics_data['recall'] = hist_df['recall'].mean()
-    if 'auc' in hist_df:
-        metrics_data['auc'] = hist_df['auc'].mean()
-    if 'val_loss' in hist_df:
-        metrics_data['val_loss'] = hist_df['val_loss'].mean()
-    if 'val_binary_accuracy' in hist_df:
-        metrics_data['val_binary_accuracy'] = hist_df['val_binary_accuracy'].mean()
-    if 'val_auc' in hist_df:
-        metrics_data['val_auc'] = hist_df['val_auc'].mean()
-
-    metrics_df = pd.DataFrame.from_records([metrics_data])
-
-    with open(plots_file_name, mode='w') as f:
-        hist_df.to_csv(f, index_label='epoch')
-
-    with open(metrics_file_name, mode='w') as f:
-        metrics_df.to_json(f)
+    print(f"TensorBoard logs written to: {log_dir}. Launch with: tensorboard --logdir {log_dir}")
