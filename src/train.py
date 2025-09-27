@@ -11,14 +11,6 @@ from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Bidirectional
 import argparse
-
-# Import custom functions from keras_custom_layers to ensure consistency
-from keras_custom_layers import (
-    compute_mask_layer,
-    squeeze_last_axis_func,
-    mask_attention_scores_func,
-    apply_attention_func
-)
 from sklearn.metrics import precision_recall_curve
 import json
 
@@ -29,48 +21,46 @@ np.random.seed(1)
 
 # Function to load the csv file
 def load(file):
-
-  # Reads the csv file (robust to different separators)
-  try:
-    df = pd.read_csv(file)
-  except Exception:
+    # Reads the csv file (robust to different separators)
     try:
-      df = pd.read_csv(file, sep=None, engine='python')  # auto-detect separator
+        df = pd.read_csv(file)
     except Exception:
-      df = pd.read_csv(file, sep=';')  # final fallback for semicolon-separated files
-  columns = len(df.columns) - 1
+        try:
+            df = pd.read_csv(file, sep=None, engine='python')  # auto-detect separator
+        except Exception:
+            df = pd.read_csv(file, sep=';')  # final fallback for semicolon-separated files
+    columns = len(df.columns) - 1
 
-  # Read max_time_steps from precomputed analysis
-  max_time_steps = 1
-  try:
-    ts_path = os.path.join('data', 'time_steps_analysis.csv')
-    if os.path.exists(ts_path):
-      ts_df = pd.read_csv(ts_path)
-      if 'time_steps' in ts_df.columns and not ts_df.empty:
-        max_time_steps = int(ts_df['time_steps'].max())
-  except Exception as e:
-    print(f"Warning: could not read time steps analysis file: {e}. Falling back to default max_time_steps=1")
+    # Read max_time_steps from precomputed analysis
+    max_time_steps = 1
+    try:
+        ts_path = os.path.join('data', 'time_steps_analysis.csv')
+        if os.path.exists(ts_path):
+            ts_df = pd.read_csv(ts_path)
+            if 'time_steps' in ts_df.columns and not ts_df.empty:
+                max_time_steps = int(ts_df['time_steps'].max())
+    except Exception as e:
+        print(f"Warning: could not read time steps analysis file: {e}. Falling back to default max_time_steps=1")
 
-  return df, max_time_steps, columns
+    return df, max_time_steps, columns
 
 
 # Function to create the padding and the masking
 def padding_masking(time_series_x, time_series_y, max_time_steps, columns, mask_value):
+    diff_number_steps = 0
 
-  diff_number_steps = 0
+    # We compare the current number of steps with max_time_steps
+    if time_series_x.shape[0] < max_time_steps:
+        diff_number_steps = (max_time_steps - time_series_x.shape[0])
 
-  # We compare the current number of steps with max_time_steps
-  if time_series_x.shape[0] < max_time_steps:
-    diff_number_steps = (max_time_steps - time_series_x.shape[0])
+    # We create a new array to mask
+    diff_array_x = np.full((diff_number_steps, columns), mask_value)
+    diff_array_y = np.full((diff_number_steps, 1), mask_value)
 
-  # We create a new array to mask
-  diff_array_x = np.full((diff_number_steps, columns), mask_value)
-  diff_array_y = np.full((diff_number_steps, 1), mask_value)
+    time_series_x = np.vstack([time_series_x, diff_array_x])
+    time_series_y = np.vstack([time_series_y, diff_array_y])
 
-  time_series_x = np.vstack([time_series_x, diff_array_x])
-  time_series_y = np.vstack([time_series_y, diff_array_y])
-
-  return time_series_x, time_series_y
+    return time_series_x, time_series_y
 
 
 # Function to load the time series and separates it into features and class
@@ -116,7 +106,7 @@ def load_time_series(df, max_time_steps, columns, mask_value, percentage_train, 
         sample_y = None
 
         # Iterate groups and build sequences
-        for (gid, dstr), gdf in df_work.groupby(['group_id', '__date'], sort=False):
+        for (_, _), gdf in df_work.groupby(['group_id', '__date'], sort=False):
             # Prepare features X and labels y for this group
             df_y = gdf["request_help"].to_numpy().reshape(-1, 1)
 
@@ -201,6 +191,7 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
                    dropout_value=0.5, use_bidirectional=True, use_attention=False):
     inputs = tf.keras.Input(shape=shape)
     masked = layers.Masking(mask_value=mask_value)(inputs)
+
     # Optional first LSTM stack
     if second_lstm_layer:
         if use_bidirectional:
@@ -211,29 +202,34 @@ def generate_model(shape, mask_value, lstm_units, return_sequences=False, second
             x = layers.Dropout(dropout_value)(x)
     else:
         x = masked
+
     # Main LSTM layer
     if use_bidirectional:
         x = Bidirectional(layers.LSTM(lstm_units, return_sequences=return_sequences))(x)
     else:
         x = layers.LSTM(lstm_units, return_sequences=return_sequences)(x)
+
     if use_dropout:
         x = layers.Dropout(dropout_value)(x)
-    # Optional attention
+
+    # Atención opcional sin Lambda
     attention_weights = None
-    if use_attention:
-        attention_scores = layers.Dense(1, activation='tanh', name='attention_score')(x)
-        attention_scores = layers.Lambda(squeeze_last_axis_func)(attention_scores)
-        mask = layers.Lambda(compute_mask_layer(mask_value))(inputs)
-        masked_attention_scores = layers.Lambda(mask_attention_scores_func)([attention_scores, mask])
-        attention = layers.Softmax(axis=1, name='attention_weights')(masked_attention_scores)
-        attention_weights = attention
-        x = layers.Lambda(apply_attention_func)([x, attention])
+    if use_attention and return_sequences:
+        attn_scores = layers.Dense(1, activation='tanh', name='attention_score')(x)          # (B, T, 1)
+        attn_scores_2d = layers.Reshape((-1,), name='attention_scores_2d')(attn_scores)      # (B, T)
+        attention_weights = layers.Softmax(axis=1, name='attention_weights')(attn_scores_2d) # (B, T)
+        attn_weights_exp = layers.Reshape((-1, 1), name='attention_weights_exp')(attention_weights)
+        x = layers.Multiply(name='apply_attention')([x, attn_weights_exp])
+
     outputs = layers.Dense(1, activation='sigmoid')(x)
+
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
-    if use_attention:
+
+    # Exponer submodelo de atención si existe
+    if use_attention and attention_weights is not None:
         attention_model = tf.keras.Model(inputs=inputs, outputs=attention_weights, name='attention_submodel')
         model.attention_model = attention_model
-    # Compilation deferred to main to allow dynamic optimizer with schedule
+
     return model
 
 # Function to compute sample weights for time series data
@@ -267,7 +263,6 @@ def compute_sample_weights_for_time_series(train_y, mask_value, class_weights):
     return sample_weights
 
 
-
 if __name__ == "__main__":
     print(tf.__version__)
 
@@ -291,7 +286,6 @@ if __name__ == "__main__":
     output_dir = args.output_dir
     log_dir = args.log_dir
 
-    # Ensure output directories exist
     os.makedirs(os.path.dirname(plots_file_name), exist_ok=True)
     os.makedirs(os.path.dirname(metrics_file_name), exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
@@ -300,33 +294,27 @@ if __name__ == "__main__":
     with open(params_file, 'r') as fd:
         params = yaml.safe_load(fd)
 
-    distance_calculation_type = params['model'].get('distance_calculation_type','artie') # ARTIE or APTED
-
-    mask_value = params['model'].get('mask_value', -1)  # Default -1 to mask values
-    percentage_train_size = params['model'].get('percentage_train_size', 70)  # Default 80% for training
-    initial_learning_rate = params['model'].get('initial_learning_rate', 0.001)  # default 1e-3 for cosine decay
-
-    lstm_units = params['model'].get('lstm_units',256)  # Default 256 LSTM units
-    return_sequences = params['model'].get('return_sequences',True)  # Default enabled
-    second_lstm_layer = params['model'].get('second_lstm_layer', True)  # Default enabled
-    use_dropouts = params['model'].get('use_dropouts', True)  # Default enabled
+    distance_calculation_type = params['model'].get('distance_calculation_type', 'artie')
+    mask_value = params['model'].get('mask_value', -1)
+    percentage_train_size = params['model'].get('percentage_train_size', 70)
+    initial_learning_rate = params['model'].get('initial_learning_rate', 0.001)
+    lstm_units = params['model'].get('lstm_units', 256)
+    return_sequences = params['model'].get('return_sequences', True)
+    second_lstm_layer = params['model'].get('second_lstm_layer', True)
+    use_dropouts = params['model'].get('use_dropouts', True)
     dropout_value = params['model'].get('dropout_value', 0.5)
-    use_bidirectional = params['model'].get('use_bidirectional', True)  # Default enabled
-    use_attention = params['model'].get('use_attention', False)  # Default do not use attention
+    use_bidirectional = params['model'].get('use_bidirectional', True)
+    use_attention = params['model'].get('use_attention', False)
+    training_epochs = params['model'].get('training_epochs', 100)
+    training_batch_size = params['model'].get('training_batch_size', 32)
+    training_class_weights = params['model'].get('training_class_weights', True)
+    training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)
+    training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)
+    training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)
+    show_summary = params['model'].get('show_summary', True)
 
-    training_epochs = params['model'].get('training_epochs', 100)  # Default 100 epochs
-    training_batch_size = params['model'].get('training_batch_size', 32)  # Default 32 batch size
-    training_class_weights = params['model'].get('training_class_weights', True)  # Default True, use class weights
-    training_early_stopping_patience = params['model'].get('training_early_stopping_patience', 10)  # Default 10 epochs patience
-    training_reduce_lr_patience = params['model'].get('training_reduce_lr_patience', 5)  # (legacy param, unused with cosine schedule)
-    training_reduce_lr_factor = params['model'].get('training_reduce_lr_factor', 0.1)  # (legacy param, unused with cosine schedule)
-
-    show_summary = params['model'].get('show_summary', True)  # Default show model summary
-
-    # list of all physical devices
     print(tf.config.list_physical_devices())
 
-    # Configure TensorFlow to use Metal GPU if requested and available
     if use_gpu:
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:
@@ -339,7 +327,7 @@ if __name__ == "__main__":
                 )
                 try:
                     tf.config.optimizer.set_jit(False)
-                except:
+                except Exception:
                     pass
                 print("Metal GPU enabled for training with safe settings")
             except RuntimeError as e:
@@ -349,33 +337,28 @@ if __name__ == "__main__":
             print("No GPUs found. Using CPU for training.")
             use_gpu = False
     else:
-        # Disable GPU usage
         try:
             tf.config.set_visible_devices([], 'GPU')
             print("GPU disabled for training. Using CPU.")
         except Exception as e:
             print(f"Could not disable GPU explicitly: {e}")
 
-    # Loads the data file and gets the maximum time steps and the number of columns
     df, max_time_steps, columns = load(input_csv_file)
 
-    # Loading the training and tests sets and fill the data with the mask value until the max time steps has been reached
-    df, train_x, train_y, test_x, test_y = load_time_series(df, max_time_steps, columns, mask_value, percentage_train_size,
-                                                            distance_calculation_type)
+    df, train_x, train_y, test_x, test_y = load_time_series(
+        df, max_time_steps, columns, mask_value, percentage_train_size, distance_calculation_type
+    )
 
-    # Executing the training
     shape = (None, train_x.shape[2])
     model = generate_model(
         shape, mask_value, lstm_units, return_sequences, second_lstm_layer,
         use_dropouts, dropout_value, use_bidirectional, use_attention
     )
 
-    # Log device information before training
     print("Device configuration for training:")
     print("- Visible devices:", tf.config.get_visible_devices())
     print("- Using GPU:", use_gpu)
 
-    # Learning rate logger callback
     class LearningRateLogger(tf.keras.callbacks.Callback):
         def __init__(self, log_dir):
             super().__init__()
@@ -400,7 +383,7 @@ if __name__ == "__main__":
                 with self.writer.as_default():
                     tf.summary.scalar('learning_rate', data=lr_v, step=epoch)
             print(f"\nLearning rate at epoch {epoch+1}: {lr_v}")
-    # Validation metrics & dynamic threshold callback
+
     class ValidationMetricsCallback(tf.keras.callbacks.Callback):
         def __init__(self, val_data, mask_value, log_path, log_dir=None):
             super().__init__()
@@ -455,13 +438,13 @@ if __name__ == "__main__":
                 print(f"Validation threshold metrics saved to {self.log_path}")
             except Exception as e:
                 print(f"Could not save validation threshold metrics: {e}")
-    # Learning rate schedule (Cosine decay)
+
     steps_per_epoch = max(1, math.ceil(train_x.shape[0] / training_batch_size))
     decay_steps = steps_per_epoch * training_epochs
     lr_schedule = tf.keras.optimizers.schedules.CosineDecay(initial_learning_rate=initial_learning_rate,
                                                             decay_steps=decay_steps, alpha=0.1)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule, clipnorm=1.0)
-    # Compile model
+
     model.compile(
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
         optimizer=optimizer,
@@ -470,18 +453,20 @@ if __name__ == "__main__":
                  tf.keras.metrics.Recall(name='recall'),
                  tf.keras.metrics.AUC(name='auc', curve='PR')]
     )
+
     lr_logger = LearningRateLogger(log_dir)
     tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True,
                                                     write_images=False, update_freq='epoch')
-    # Instantiate validation metrics callback to access after training
+
     val_metrics_cb = ValidationMetricsCallback((test_x, test_y), mask_value,
                                                log_path=os.path.join(os.path.dirname(metrics_file_name), 'val_threshold_metrics.json'),
                                                log_dir=log_dir)
+
     callbacks = [lr_logger, tensorboard_cb,
                  tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=max(15, training_early_stopping_patience),
                                                   mode='max', restore_best_weights=True),
                  val_metrics_cb]
-    # Class weight normalization
+
     if training_class_weights:
         train_y_flat = train_y.reshape(-1)
         train_y_flat = train_y_flat[train_y_flat != mask_value]
@@ -495,9 +480,11 @@ if __name__ == "__main__":
         sample_weights = compute_sample_weights_for_time_series(train_y, mask_value, class_weights)
     else:
         sample_weights = None
+
     effective_batch = training_batch_size
     print(f"Effective batch size: {effective_batch}")
     print("Configured metrics:", [m.name if hasattr(m, 'name') else m for m in model.metrics])
+
     history = model.fit(train_x, train_y,
                         epochs=training_epochs,
                         batch_size=effective_batch,
@@ -506,7 +493,7 @@ if __name__ == "__main__":
                         shuffle=False,
                         callbacks=callbacks,
                         sample_weight=sample_weights)
-    # Inject validation F1 metrics from callback into history (so they can be aggregated)
+
     if hasattr(val_metrics_cb, 'history') and val_metrics_cb.history:
         f1_list = [e['f1'] for e in val_metrics_cb.history]
         best_f1_list = [e['best_f1_so_far'] for e in val_metrics_cb.history]
@@ -514,7 +501,7 @@ if __name__ == "__main__":
         history.history['f1'] = f1_list
         history.history['best_f1_so_far'] = best_f1_list
         history.history['best_threshold'] = best_thr_list
-    # Saving the model
+
     print("\nTraining completed successfully. Saving model...")
     try:
         model.save(output_model_file, save_format='keras')
@@ -524,7 +511,7 @@ if __name__ == "__main__":
         model.save(output_model_file)
         print(f"Model saved to {output_model_file} in legacy HDF5 format")
 
-    if use_attention and hasattr(model, 'attention_model'):
+    if hasattr(model, 'attention_model'):
         attention_model_path = output_model_file.replace('.keras', '_attention.keras')
         try:
             model.attention_model.save(attention_model_path, save_format='keras')
@@ -532,7 +519,6 @@ if __name__ == "__main__":
             model.attention_model.save(attention_model_path)
         print(f"Attention submodel saved to {attention_model_path}")
 
-    # Prepare history DataFrame and metrics (reuse existing logic adapted)
     if not history.history:
         print("WARNING: The training history is empty.")
     else:
@@ -558,8 +544,6 @@ if __name__ == "__main__":
             print(f"Error generating model diagram: {e}")
 
     if history.history:
-        # existing code above already created hist_df and metrics_data; we patch where metrics_data is assembled
-        # Save per-epoch history to plots file (required by DVC)
         try:
             hist_df.to_csv(plots_file_name, index_label='epoch')
         except Exception as e:
@@ -582,7 +566,6 @@ if __name__ == "__main__":
         if 'lr' in hist_df:
             metrics_data['final_lr'] = hist_df['lr'].iloc[-1]
             metrics_data['mean_lr'] = hist_df['lr'].mean()
-        # Add F1 stats and threshold (final, best and mean)
         if 'f1' in hist_df:
             metrics_data['final_f1'] = hist_df['f1'].iloc[-1]
             metrics_data['mean_f1'] = hist_df['f1'].mean()

@@ -8,15 +8,24 @@ import os
 import yaml
 import sys
 
-# Import custom layers to ensure they're available when loading the model
-from keras_custom_layers import (
-    MaskedRepeatVector,
-    AttentionLayer,
-    compute_mask_layer,
-    squeeze_last_axis_func,
-    mask_attention_scores_func,
-    apply_attention_func
-)
+# Lista exacta de características esperadas por el modelo (15)
+EXPECTED_FEATURES = [
+    "student_sex",
+    "student_mother_tongue",
+    "student_age",
+    "student_competence",
+    "exercise_skill_parallelism",
+    "exercise_skill_logical_thinking",
+    "exercise_skill_flow_control",
+    "exercise_skill_user_interactivity",
+    "exercise_skill_information_representation",
+    "exercise_skill_abstraction",
+    "exercise_skill_synchronization",
+    "exercise_level",
+    "solution_distance_total_distance",
+    "seconds_help_open",
+    "total_seconds",
+]
 
 def configure_gpu(use_gpu=False):
     """Configure GPU usage for TensorFlow"""
@@ -81,8 +90,15 @@ def load_test_data(csv_path, mask_value=-1, max_sequences=10):
     if 'request_help' in df.columns:
         y_true = df['request_help'].values
 
-    # Prepare features
-    features = df.drop(columns=exclude_columns, errors='ignore')
+    # Asegurar que existen todas las columnas esperadas; rellenar faltantes con 0.0
+    missing = [c for c in EXPECTED_FEATURES if c not in df.columns]
+    if missing:
+        print(f"WARNING: faltan columnas en el CSV necesarias para el modelo: {missing}. Se rellenarán con 0.0")
+        for c in missing:
+            df[c] = 0.0
+
+    # Seleccionar exactamente las columnas esperadas y en el orden correcto
+    features = df[EXPECTED_FEATURES].copy()
     num_columns = features.shape[1]
 
     # If there's no 'total_seconds' column, treat as a single sequence
@@ -127,18 +143,14 @@ def load_test_data(csv_path, mask_value=-1, max_sequences=10):
     # Apply padding to sequences
     padded_sequences = []
     for seq in sequences:
-        # Calculate how much padding we need
         padding_size = max_length - seq.shape[0]
         if padding_size > 0:
-            # Create padding array
             padding = np.full((padding_size, num_columns), mask_value)
-            # Apply padding
             seq_padded = np.vstack([seq, padding])
             padded_sequences.append(seq_padded)
         else:
             padded_sequences.append(seq)
 
-    # Convert to numpy array
     X_padded = np.array(padded_sequences)
     print(f"Final data shape: {X_padded.shape}")
 
@@ -363,97 +375,23 @@ def main():
     mask_value = params['model'].get('mask_value', -1)
     use_attention = params['model'].get('use_attention', False)
 
-    # Load main model
+    # Load main model (sin objetos personalizados)
     print(f"\nLoading model from {args.model_path}...")
     try:
-        # Specify custom objects when loading the model
-        custom_objects = {
-            'compute_mask_layer': compute_mask_layer,
-            'squeeze_last_axis_func': squeeze_last_axis_func,
-            'mask_attention_scores_func': mask_attention_scores_func,
-            'apply_attention_func': apply_attention_func,
-            'MaskedRepeatVector': MaskedRepeatVector,
-            'AttentionLayer': AttentionLayer
-        }
-
-        # Try to load with experimental skip_deserialization option
-        try:
-            # Option 1: Use experimental option to skip deserialization problems
-            model = tf.keras.models.load_model(
-                args.model_path, 
-                custom_objects=custom_objects, 
-                compile=False,
-                options=tf.saved_model.LoadOptions(experimental_skip_checkpoint=True)
-            )
-        except Exception as e1:
-            print(f"Attempt 1 failed: {e1}")
-            # Option 2: Use alternative loading methods
-            try:
-                model = tf.keras.models.load_model(
-                    args.model_path, 
-                    custom_objects=custom_objects, 
-                    compile=False,
-                    safe_mode=False
-                )
-            except Exception as e2:
-                print(f"Attempt 2 failed: {e2}")
-                # Option 3: Recreate the model manually and load weights
-                # This is the most manual but safest approach
-                from tensorflow.keras.layers import Input, LSTM, Dense, Masking, Lambda, Bidirectional
-                from tensorflow.keras.models import Model
-
-                # Simplified model structure - adjust according to the original model
-                input_layer = Input(shape=(None, 13))  # Adjust according to the number of features
-                masked = Masking(mask_value=-1)(input_layer)
-                lstm = Bidirectional(LSTM(256, activation='sigmoid', return_sequences=True))(masked)
-                output = Dense(1, activation='sigmoid')(lstm)
-                model = Model(inputs=input_layer, outputs=output)
-
-                # Try to load only the weights if possible
-                try:
-                    model.load_weights(args.model_path)
-                    print("Model manually recreated and weights loaded.")
-                except Exception as e3:
-                    print(f"Could not load weights: {e3}")
-                    raise ValueError("Could not load the model in any way")
-
+        model = tf.keras.models.load_model(args.model_path, compile=False, safe_mode=False)
         model.summary()
     except Exception as e:
         print(f"FINAL ERROR: Could not load the model: {e}")
         return 1
 
-    # Load attention model if it exists
+    # Load attention model if it exists (opcional)
     attention_model = None
     attention_path = args.model_path.replace('.keras', '_attention.keras')
     if os.path.exists(attention_path) and use_attention:
         try:
             print(f"\nLoading attention model from {attention_path}...")
-            # Try with different loading strategies
-            try:
-                # Attempt 1: With experimental options
-                attention_model = tf.keras.models.load_model(
-                    attention_path, 
-                    custom_objects=custom_objects, 
-                    compile=False,
-                    options=tf.saved_model.LoadOptions(experimental_skip_checkpoint=True)
-                )
-            except Exception as e1:
-                print(f"Attention attempt 1 failed: {e1}")
-                try:
-                    # Attempt 2: Without safe mode
-                    attention_model = tf.keras.models.load_model(
-                        attention_path, 
-                        custom_objects=custom_objects,
-                        compile=False,
-                        safe_mode=False
-                    )
-                except Exception as e2:
-                    print(f"Attention attempt 2 failed: {e2}")
-                    print("Continuing without attention model...")
-
-            if attention_model is not None:
-                attention_model.summary()
-
+            attention_model = tf.keras.models.load_model(attention_path, compile=False, safe_mode=False)
+            attention_model.summary()
         except Exception as e:
             print(f"ERROR: Could not load attention model: {e}")
             print("Continuing without attention model...")
@@ -461,10 +399,10 @@ def main():
     # Load test data (limited to specified number of sequences)
     X, y_true, df = load_test_data(args.data_file, mask_value, max_sequences=args.test_sequences)
 
-    # Get feature names
-    feature_names = df.columns.drop(['request_help', 'total_seconds'], errors='ignore').tolist()
+    # Usar los nombres de features en el orden esperado
+    feature_names = EXPECTED_FEATURES
 
-    # Explain predictions
+    # Explicar y obtener predicciones
     results, predictions = analyze_predictions(model, attention_model, X, feature_names, mask_value)
 
     # Save predictions to CSV for DVC

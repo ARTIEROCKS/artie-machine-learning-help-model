@@ -19,3 +19,4 @@ wrapt>=1.12.0
 pyparsing>=3.0.0
 keras>=2.6.0
 boto3>=1.34.0
+pydot==4.0.1
