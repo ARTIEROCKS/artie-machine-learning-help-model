@@ -24,14 +24,14 @@ model:
   percentage_train_size: 70
   lstm_units: 256
   return_sequences: true
-  second_lstm_layer: true
-  use_dropouts: true
+  second_lstm_layer: false
+  use_dropouts: false
   use_bidirectional: true
   dropout_value: 0.5
   use_attention: true
   initial_learning_rate: 0.001
   training_epochs: 500
-  training_batch_size: 8
+  training_batch_size: 16
   training_class_weights: true
   training_early_stopping_patience: 50
   training_reduce_lr_patience: 30
