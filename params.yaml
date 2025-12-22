@@ -19,7 +19,7 @@ selection:
   heatmap_correlation_path_after: dvc_plots/heatmap_correlation_after.png
 
 model:
-  distance_calculation_type: ARTIE
+  distance_calculation_type: APTED
   mask_value: -1
   percentage_train_size: 70
   lstm_units: 256
@@ -31,7 +31,7 @@ model:
   use_attention: true
   initial_learning_rate: 0.001
   training_epochs: 500
-  training_batch_size: 8
+  training_batch_size: 16
   training_class_weights: true
   training_early_stopping_patience: 100
   training_reduce_lr_patience: 30
