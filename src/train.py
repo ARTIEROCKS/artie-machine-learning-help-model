@@ -573,6 +573,14 @@ if __name__ == "__main__":
             metrics_data['best_f1'] = hist_df['best_f1_so_far'].max()
         if 'best_threshold' in hist_df:
             metrics_data['best_threshold'] = hist_df['best_threshold'].iloc[-1]
+
+        # Agregar métricas de precision y recall
+        if 'precision' in hist_df:
+            metrics_data['best_precision'] = hist_df['precision'].max()
+            metrics_data['final_precision'] = hist_df['precision'].iloc[-1]
+        if 'recall' in hist_df:
+            metrics_data['best_recall'] = hist_df['recall'].max()
+            metrics_data['final_recall'] = hist_df['recall'].iloc[-1]
         metrics_df = pd.DataFrame.from_records([metrics_data])
         with open(metrics_file_name, mode='w') as f:
             metrics_df.to_json(f)
