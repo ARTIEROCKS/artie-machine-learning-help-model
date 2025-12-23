@@ -392,6 +392,9 @@ if __name__ == "__main__":
             self.log_path = log_path
             self.best_f1 = -1
             self.best_threshold = 0.5
+            self.best_precision = 0.0
+            self.best_recall = 0.0
+            self.best_epoch = 0
             self.history = []
             self.writer = None
             if log_dir is not None:
@@ -408,33 +411,51 @@ if __name__ == "__main__":
             idx = f1_scores.argmax()
             best_thr = thresholds[idx] if idx < len(thresholds) else 0.5
             best_f1 = f1_scores[idx]
+
+            # Calcular precision y recall en esta época con el threshold de esta época
+            best_precision_epoch = precision[idx]
+            best_recall_epoch = recall[idx]
+
             if best_f1 > self.best_f1:
                 self.best_f1 = best_f1
                 self.best_threshold = best_thr
+                self.best_precision = best_precision_epoch
+                self.best_recall = best_recall_epoch
+                self.best_epoch = epoch + 1
+
             self.history.append({
                 "epoch": epoch + 1,
                 "f1": float(best_f1),
                 "best_f1_so_far": float(self.best_f1),
                 "threshold_epoch": float(best_thr),
-                "best_threshold": float(self.best_threshold)
+                "best_threshold": float(self.best_threshold),
+                "precision_epoch": float(best_precision_epoch),
+                "recall_epoch": float(best_recall_epoch)
             })
             if self.writer is not None:
                 with self.writer.as_default():
                     tf.summary.scalar('val_f1', best_f1, step=epoch)
                     tf.summary.scalar('val_best_threshold', self.best_threshold, step=epoch)
-            print(f"[ValMetrics] Epoch {epoch+1}: F1={best_f1:.4f} thr={best_thr:.3f} (best_f1={self.best_f1:.4f} best_thr={self.best_threshold:.3f})")
+                    tf.summary.scalar('val_precision_epoch', best_precision_epoch, step=epoch)
+                    tf.summary.scalar('val_recall_epoch', best_recall_epoch, step=epoch)
+            print(f"[ValMetrics] Epoch {epoch+1}: F1={best_f1:.4f} thr={best_thr:.3f} P={best_precision_epoch:.4f} R={best_recall_epoch:.4f} (best_f1={self.best_f1:.4f} best_thr={self.best_threshold:.3f})")
         def on_train_end(self, logs=None):
             try:
                 with open(self.log_path, "w") as f:
                     json.dump({
                         "best_f1": float(self.best_f1),
                         "best_threshold": float(self.best_threshold),
+                        "best_precision": float(self.best_precision),
+                        "best_recall": float(self.best_recall),
+                        "best_epoch": int(self.best_epoch),
                         "epochs": self.history
                     }, f, indent=2)
                 if self.writer is not None:
                     with self.writer.as_default():
                         tf.summary.scalar('final_best_f1', self.best_f1, step=0)
                         tf.summary.scalar('final_best_threshold', self.best_threshold, step=0)
+                        tf.summary.scalar('final_best_precision', self.best_precision, step=0)
+                        tf.summary.scalar('final_best_recall', self.best_recall, step=0)
                 print(f"Validation threshold metrics saved to {self.log_path}")
             except Exception as e:
                 print(f"Could not save validation threshold metrics: {e}")
@@ -573,6 +594,21 @@ if __name__ == "__main__":
             metrics_data['best_f1'] = hist_df['best_f1_so_far'].max()
         if 'best_threshold' in hist_df:
             metrics_data['best_threshold'] = hist_df['best_threshold'].iloc[-1]
+
+        # Usar best_precision y best_recall del callback (calculados con best_threshold en época de best_f1)
+        if hasattr(val_metrics_cb, 'best_precision') and hasattr(val_metrics_cb, 'best_recall'):
+            metrics_data['best_precision'] = float(val_metrics_cb.best_precision)
+            metrics_data['best_recall'] = float(val_metrics_cb.best_recall)
+            metrics_data['best_epoch'] = int(val_metrics_cb.best_epoch)
+
+        # Calcular final_precision y final_recall de la última época del callback
+        if hasattr(val_metrics_cb, 'history') and val_metrics_cb.history:
+            last_epoch_metrics = val_metrics_cb.history[-1]
+            if 'precision_epoch' in last_epoch_metrics:
+                metrics_data['final_precision'] = float(last_epoch_metrics['precision_epoch'])
+            if 'recall_epoch' in last_epoch_metrics:
+                metrics_data['final_recall'] = float(last_epoch_metrics['recall_epoch'])
+
         metrics_df = pd.DataFrame.from_records([metrics_data])
         with open(metrics_file_name, mode='w') as f:
             metrics_df.to_json(f)
